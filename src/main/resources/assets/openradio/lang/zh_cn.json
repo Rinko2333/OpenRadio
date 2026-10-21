@@ -1,0 +1,37 @@
+{
+  "itemGroup.openradio": "开放无线电",
+  "key.categories.openradio": "开放无线电",
+  "key.openradio.open_panel": "打开电台面板",
+
+  "item.openradio.handheld_radio": "手持电台",
+
+  "tooltip.openradio.frequency": "频率：%s  ·  %s",
+  "tooltip.openradio.powered.on": "已开机",
+  "tooltip.openradio.powered.off": "已关机",
+  "tooltip.openradio.open_panel": "按 R 打开电台面板",
+
+  "gui.openradio.title": "手持电台",
+  "gui.openradio.frequency": "频率",
+  "gui.openradio.message": "报文",
+  "gui.openradio.send": "发射",
+  "gui.openradio.power_on": "开机",
+  "gui.openradio.power_off": "关机",
+  "gui.openradio.offline": "无信号",
+  "gui.openradio.status": "Q %s  %s · %s 个同频台",
+  "gui.openradio.only_self": "Q %s · 没有同频电台",
+  "gui.openradio.quality.clear": "清晰",
+  "gui.openradio.quality.fair": "轻微噪声",
+  "gui.openradio.quality.poor": "严重噪声",
+  "gui.openradio.quality.unusable": "几乎不可读",
+  "gui.openradio.hint": "回车确认 · Esc 关闭",
+
+  "band.openradio.short": "短波",
+  "band.openradio.medium": "中波",
+  "band.openradio.long": "长波",
+
+  "message.openradio.powered_on": "电台已开机  ·  %s",
+  "message.openradio.powered_off": "电台已关机  ·  %s",
+  "message.openradio.tx_no_device": "手里没有已开机的电台",
+  "message.openradio.tx_no_receiver": "已发射  ·  当前频率无人应答",
+  "message.openradio.tx_sent": "已发射  ·  %s 个接收者"
+}

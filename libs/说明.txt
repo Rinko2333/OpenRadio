@@ -1,0 +1,7 @@
+把 Simple Voice Chat 本体 jar 放在这个目录：
+  libs/voicechat-neoforge-1.21.1-2.6.22.jar
+
+下载地址：https://modrinth.com/mod/simple-voice-chat/versions?g=1.21.1&l=neoforge
+选 2.6.22（release），不要 2.6.23/2.6.24（beta）。
+
+放进去后所有 run 配置会自动加载，不需要再往 run/mods 复制。

@@ -1,0 +1,37 @@
+{
+  "itemGroup.openradio": "Open Radio",
+  "key.categories.openradio": "Open Radio",
+  "key.openradio.open_panel": "Open radio panel",
+
+  "item.openradio.handheld_radio": "Handheld Radio",
+
+  "tooltip.openradio.frequency": "Frequency: %s  ·  %s",
+  "tooltip.openradio.powered.on": "Powered on",
+  "tooltip.openradio.powered.off": "Powered off",
+  "tooltip.openradio.open_panel": "Press R to open the radio panel",
+
+  "gui.openradio.title": "Handheld Radio",
+  "gui.openradio.frequency": "Frequency",
+  "gui.openradio.message": "Message",
+  "gui.openradio.send": "Transmit",
+  "gui.openradio.power_on": "Power on",
+  "gui.openradio.power_off": "Power off",
+  "gui.openradio.offline": "off air",
+  "gui.openradio.status": "Q %s  %s · %s on frequency",
+  "gui.openradio.only_self": "Q %s · nobody on frequency",
+  "gui.openradio.quality.clear": "clear",
+  "gui.openradio.quality.fair": "slight noise",
+  "gui.openradio.quality.poor": "heavy noise",
+  "gui.openradio.quality.unusable": "unreadable",
+  "gui.openradio.hint": "Enter confirms, Esc closes",
+
+  "band.openradio.short": "Shortwave",
+  "band.openradio.medium": "Medium wave",
+  "band.openradio.long": "Longwave",
+
+  "message.openradio.powered_on": "Radio on  ·  %s",
+  "message.openradio.powered_off": "Radio off  ·  %s",
+  "message.openradio.tx_no_device": "No powered radio in hand",
+  "message.openradio.tx_no_receiver": "Transmitted  ·  no one on frequency",
+  "message.openradio.tx_sent": "Transmitted  ·  %s receiver(s)"
+}
