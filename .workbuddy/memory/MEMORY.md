@@ -47,5 +47,14 @@ modid `openradio`，包 `com.rinko.openradio`。
   上下文被压缩后先读它。
 - 版本策略：0.x = 抢先体验，固定台 + 数字模式完成后才发 1.0.0。
 - 阶段顺序：M5 手持台打磨 → M6 固定台与数字模式（CW/RTTY/加密/SSTV）→ M7 发 1.0 → M8 中继。
-- **数字模式一律做成数据协议，音调在客户端本地合成**；绝不试图把调制信号塞进 SVC 的 Opus。
+- **数字模式分两类，别一刀切**：
+  - **CW / RTTY = 数据协议 + 本地合成音**（音调只是表演）。RTTY 要求精确位定时，
+    Opus 20ms 一帧≈一个 RTTY 位，丢帧就整位丢，误码不可控。
+  - **SSTV = 真实音频**。SVC 的 API 有 `OpusEncoder` + `createStaticAudioChannel` +
+    `createAudioPlayer(channel, encoder, Supplier<short[]>)`，可以主动推音频给指定玩家，
+    SVC 自己按 20ms 节奏取帧编码。**必须 `OpusEncoderMode.AUDIO`**（VOIP 模式会削掉
+    1.5–2.3kHz，正好是 SSTV 副载波）。不需要 mixin、不需要自己实现 Opus。
+  - 原"绝不把调制信号塞进 Opus"的结论过于绝对，2026-10-22 修正。
 - 能量统一用 NeoForge Energy（FE，UI 可显示为 RF）；没电只限制发射，不做变砖。
+  电池**不做物品槽**；天线**放副手**。手持台永远不要 `Menu`（复制漏洞面），
+  只有固定台有真容器。
