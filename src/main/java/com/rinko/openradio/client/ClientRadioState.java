@@ -17,6 +17,14 @@ public final class ClientRadioState {
     private static volatile boolean active;
     /** 逐说话人链路。文本模式用不到，它是为语音音频处理准备的数据源。 */
     private static volatile List<S2CRadioState.SpeakerLink> links = List.of();
+    /**
+     * 静噪阈值，<b>完全来自本地玩家手上的电台</b>，不经过服务端同步。
+     *
+     * <p>之所以单独缓存一份而不是在音频线程里现读 ItemStack：音频处理跑在每个说话者
+     * 自己的 {@code AudioChannelThread} 上，在那里读玩家背包属于跨线程访问客户端状态，
+     * 虽然只是读也有风险。由主线程每 tick 刷一次，音频线程只读这个 float。
+     */
+    private static volatile float squelch;
 
     public static void accept(S2CRadioState payload) {
         quality = payload.quality();
@@ -39,6 +47,15 @@ public final class ClientRadioState {
 
     public static List<S2CRadioState.SpeakerLink> links() {
         return links;
+    }
+
+    public static float squelch() {
+        return squelch;
+    }
+
+    /** 由主线程在客户端 tick 里刷新。参数为 0 表示取消静噪。 */
+    public static void setSquelch(float value) {
+        squelch = Math.max(0.0F, Math.min(1.0F, value));
     }
 
     /**

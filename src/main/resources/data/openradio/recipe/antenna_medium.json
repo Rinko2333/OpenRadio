@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "I",
+    "C",
+    "I"
+  ],
+  "key": {
+    "C": { "item": "minecraft:copper_ingot" },
+    "I": { "item": "minecraft:iron_ingot" }
+  },
+  "result": {
+    "id": "openradio:antenna_medium",
+    "count": 1
+  }
+}

@@ -71,6 +71,14 @@ public final class VoiceClientHandlers {
             return;
         }
 
+        // 静噪：低于阈值就当作根本没有这个信号，连噪声也不输出。
+        // 逐说话人判定 —— 真机的静噪也是对"当前这个信号"起作用的，
+        // 不是对整条信道。所以邻居很响不代表远处那个人能挤进来。
+        if (quality < ClientRadioState.squelch()) {
+            out.accept(RadioVoiceProcessor.silence(audio.length));
+            return;
+        }
+
         out.accept(RadioVoiceProcessor.process(
                 audio, SignalEffects.of(quality), stateFor(speaker)));
     }

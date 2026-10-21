@@ -6,6 +6,7 @@ import java.util.UUID;
 import com.rinko.openradio.Config;
 import com.rinko.openradio.OpenRadio;
 import com.rinko.openradio.client.VoiceClientHandlers;
+import com.rinko.openradio.energy.VoicePowerLedger;
 import com.rinko.openradio.radio.RadioManager;
 
 import de.maxhenkel.voicechat.api.ForgeVoicechatPlugin;
@@ -138,6 +139,15 @@ public class OpenRadioVoicePlugin implements VoicechatPlugin {
 
         Map<UUID, Float> listeners =
                 RadioManager.voiceSnapshot().listenersOf(sender.getUuid());
+
+        // 电量不够就不许发射。判定在快照里（主线程算好），这里只查表 ——
+        // 包线程读 ItemStack 是数据竞争，绝不能在这里自己算电量。
+        if (!RadioManager.voiceSnapshot().canTransmit(sender.getUuid())) {
+            event.cancel();
+            return;
+        }
+        // 按帧记账，主线程稍后结算。这里只累加整数，不碰物品。
+        VoicePowerLedger.onVoiceFrame(sender.getUuid(), Config.ENERGY_COST_VOICE_PER_SECOND.get());
 
         if (!listeners.isEmpty()) {
             // 同一个包发给多人：底下的 GroupSoundPacket 不可变，可以复用同一份。

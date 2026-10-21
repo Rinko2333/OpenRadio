@@ -35,11 +35,15 @@ public final class SignalPropagation {
      * @param to       接收端坐标
      * @param band     频段
      * @param maxSteps 射线步数上限
+     * @param linkGain 两端天线的合成射程系数，见 {@link Antennas#linkGain}
      * @return 0.0–1.0 的归一化质量，0 表示收不到
      */
     public static double compute(ServerLevel level, Vec3 from, Vec3 to,
-                                 RadioBand band, int maxSteps) {
-        double range = band.maxRange() * Config.RANGE_MULTIPLIER.get();
+                                 RadioBand band, int maxSteps, double linkGain) {
+        // 天线只改射程，不改衰减曲线形状 —— 增益是"能打更远"，
+        // 不是"同样距离更清楚"。这个区别在数值上很小，但在手感上很重要：
+        // 换上好天线之后，近处的信号不会突然变成完美的。
+        double range = band.maxRange() * Config.RANGE_MULTIPLIER.get() * Math.max(0.01D, linkGain);
         double distance = from.distanceTo(to);
         if (distance >= range) {
             return 0.0D;

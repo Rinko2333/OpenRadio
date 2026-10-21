@@ -1,10 +1,13 @@
 package com.rinko.openradio.network;
 
+import com.rinko.openradio.energy.RadioEnergy;
 import com.rinko.openradio.item.HandheldRadioItem;
 import com.rinko.openradio.radio.RadioConstants;
 import com.rinko.openradio.radio.RadioManager;
 import com.rinko.openradio.radio.RadioSounds;
 
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -24,6 +27,8 @@ public final class ModNetwork {
                 ModNetwork::handleSetFrequency);
         registrar.playToServer(C2SSetPowered.TYPE, C2SSetPowered.STREAM_CODEC,
                 ModNetwork::handleSetPowered);
+        registrar.playToServer(C2SSetSquelch.TYPE, C2SSetSquelch.STREAM_CODEC,
+                ModNetwork::handleSetSquelch);
         registrar.playToServer(C2STransmit.TYPE, C2STransmit.STREAM_CODEC,
                 ModNetwork::handleTransmit);
         registrar.playToClient(S2CRadioState.TYPE, S2CRadioState.STREAM_CODEC,
@@ -57,12 +62,32 @@ public final class ModNetwork {
             if (stack.isEmpty()) {
                 return;
             }
+            // 服务端也要挡住"没电池却开机"，不能只靠客户端自觉。
+            if (payload.powered() && !RadioEnergy.hasBattery(stack)) {
+                player.displayClientMessage(
+                        Component.translatable("message.openradio.no_battery")
+                                .withStyle(ChatFormatting.RED), true);
+                return;
+            }
             HandheldRadioItem.setPowered(stack, payload.powered());
             if (payload.powered()) {
                 RadioSounds.powerOn(player);
             } else {
                 RadioSounds.powerOff(player);
             }
+        });
+    }
+
+    private static void handleSetSquelch(C2SSetSquelch payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer player)) {
+                return;
+            }
+            ItemStack stack = HandheldRadioItem.findRadio(player);
+            if (stack.isEmpty()) {
+                return;
+            }
+            HandheldRadioItem.setSquelch(stack, payload.squelch());
         });
     }
 

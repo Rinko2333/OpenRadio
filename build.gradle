@@ -64,6 +64,9 @@ neoForge {
 
         server {
             server()
+            // 独立的服务器目录：run/ 是客户端目录，混在一起会让 run/world 和
+            // run/saves 同时存在，排查问题时很容易看错是哪个端在报错。
+            gameDirectory = project.file('run-server')
             programArgument '--nogui'
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }

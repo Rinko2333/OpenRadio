@@ -42,3 +42,6 @@ repo/
 
 ### 本地运行时依赖（SVC 本体 jar，不入库）
 libs/*.jar
+
+### 专用服务端运行目录
+run-server/

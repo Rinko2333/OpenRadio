@@ -3,6 +3,7 @@ package com.rinko.openradio;
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
+import com.rinko.openradio.energy.ModCapabilities;
 import com.rinko.openradio.network.ModNetwork;
 import com.rinko.openradio.radio.RadioManager;
 import com.rinko.openradio.registry.ModCreativeTabs;
@@ -37,6 +38,7 @@ public class OpenRadio {
         ModDataComponents.register(modBus);
         ModCreativeTabs.register(modBus);
         modBus.addListener(ModNetwork::register);
+        modBus.addListener(ModCapabilities::register);
 
         NeoForge.EVENT_BUS.addListener(RadioManager::onServerTick);
         NeoForge.EVENT_BUS.addListener((ServerStoppingEvent event) -> RadioManager.onServerStopping());

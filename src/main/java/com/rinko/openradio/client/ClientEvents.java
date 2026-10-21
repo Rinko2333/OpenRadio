@@ -43,6 +43,13 @@ public final class ClientEvents {
             }
             minecraft.setScreen(new RadioScreen(radio));
         }
+
+        // 静噪由主线程刷新到缓存，音频线程只读那个 float。
+        // 没拿电台就当作不静噪 —— 否则上次的阈值会在空手时继续生效，很难排查。
+        if (minecraft.player != null) {
+            ItemStack radio = HandheldRadioItem.findRadio(minecraft.player);
+            ClientRadioState.setSquelch(radio.isEmpty() ? 0.0F : HandheldRadioItem.getSquelch(radio));
+        }
     }
 
     private ClientEvents() {

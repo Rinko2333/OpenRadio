@@ -72,6 +72,37 @@ public final class Config {
     /** 可读度为 0 时的断音率。语音层用它决定丢包/断音的比例。 */
     public static final ModConfigSpec.DoubleValue MAX_DROPOUT_RATE;
 
+    // ---------------------------------------------------------- 能量
+
+    /** 一块电池的容量（FE）。 */
+    public static final ModConfigSpec.IntValue ENERGY_BATTERY_CAPACITY;
+
+    /** 开机待机时每分钟的耗电。0 = 待机不耗电。 */
+    public static final ModConfigSpec.DoubleValue ENERGY_IDLE_DRAIN_PER_MINUTE;
+
+    /** 发一条文本消息的耗电。 */
+    public static final ModConfigSpec.IntValue ENERGY_COST_MESSAGE;
+
+    /** 语音发射每秒的耗电。 */
+    public static final ModConfigSpec.IntValue ENERGY_COST_VOICE_PER_SECOND;
+
+    /** 低于该电量比例后只能收不能发。 */
+    public static final ModConfigSpec.DoubleValue ENERGY_LOW_THRESHOLD;
+
+    // ---------------------------------------------------------- 天线
+
+    /** 没有天线时的射程系数。 */
+    public static final ModConfigSpec.DoubleValue ANTENNA_GAIN_BARE;
+
+    /** 专用天线在匹配波段上的射程系数。 */
+    public static final ModConfigSpec.DoubleValue ANTENNA_GAIN_MATCHED;
+
+    /** 专用天线装错波段时的射程系数。 */
+    public static final ModConfigSpec.DoubleValue ANTENNA_GAIN_MISMATCHED;
+
+    /** 宽带天线的射程系数（任何波段都一样）。 */
+    public static final ModConfigSpec.DoubleValue ANTENNA_GAIN_WIDEBAND;
+
     // ---------------------------------------------------------- 语音
 
     /** 语音功能总开关。关闭后本 mod 完全不干预 Simple Voice Chat。 */
@@ -176,8 +207,42 @@ public final class Config {
                 .defineInRange("maxDropoutRate", 0.80D, 0.0D, 1.0D);
         builder.pop();
 
-        builder.comment("语音（Simple Voice Chat 集成）").push("voice");
-        VOICE_ENABLED = builder
+        builder.comment("能量。电台用 NeoForge Energy（FE），UI 上按社区习惯显示为 RF。").push("energy");
+        ENERGY_BATTERY_CAPACITY = builder
+                .comment("一块电池的容量（FE）。")
+                .defineInRange("batteryCapacity", 20_000, 100, 2_000_000);
+        ENERGY_IDLE_DRAIN_PER_MINUTE = builder
+                .comment("开机待机时每分钟耗电（FE/min）。0 = 待机不耗电。",
+                        "默认 60：一块满电池待机约 5.5 小时，够用但不至于永远不用管电。")
+                .defineInRange("idleDrainPerMinute", 60.0D, 0.0D, 100_000.0D);
+        ENERGY_COST_MESSAGE = builder
+                .comment("发一条文本消息的耗电（FE）。")
+                .defineInRange("costPerMessage", 40, 0, 100_000);
+        ENERGY_COST_VOICE_PER_SECOND = builder
+                .comment("语音发射每秒的耗电（FE/s）。按麦克风帧累计，每 20 tick 结算一次。")
+                .defineInRange("costPerVoiceSecond", 40, 0, 100_000);
+        ENERGY_LOW_THRESHOLD = builder
+                .comment("低于该电量比例后只能收不能发。不做变砖 —— 换块电池就能继续用。")
+                .defineInRange("lowThreshold", 0.10D, 0.0D, 1.0D);
+        builder.pop();
+
+        builder.comment("天线。射程 = 频段射程 × √(发送端系数 × 接收端系数)。").push("antenna");
+        ANTENNA_GAIN_BARE = builder
+                .comment("没有天线时的射程系数。裸机很难用，但不是不能用。")
+                .defineInRange("bareGain", 0.50D, 0.05D, 4.0D);
+        ANTENNA_GAIN_MATCHED = builder
+                .comment("专用天线在匹配波段上的射程系数。")
+                .defineInRange("matchedGain", 1.60D, 0.05D, 8.0D);
+        ANTENNA_GAIN_MISMATCHED = builder
+                .comment("专用天线装错波段时的射程系数。刻意保留一点作用，",
+                        "让装错天线只是效率低，而不是完全不能用。")
+                .defineInRange("mismatchedGain", 0.80D, 0.05D, 4.0D);
+        ANTENNA_GAIN_WIDEBAND = builder
+                .comment("宽带天线的射程系数，任何波段都一样。它是不想挑波段时的折衷。")
+                .defineInRange("widebandGain", 1.20D, 0.05D, 4.0D);
+        builder.pop();
+
+        builder.comment("语音（Simple Voice Chat 集成）").push("voice");        VOICE_ENABLED = builder
                 .comment("语音功能总开关。关闭后本 mod 完全不干预 Simple Voice Chat。")
                 .define("enabled", true);
         VOICE_REPLACE_VANILLA = builder
