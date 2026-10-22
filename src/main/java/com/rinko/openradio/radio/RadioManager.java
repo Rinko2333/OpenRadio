@@ -60,6 +60,8 @@ public final class RadioManager {
     private static final Map<UUID, Double> IDLE_RESIDUAL = new HashMap<>();
     /** 已经提示过"电量低"的玩家，用于只提示一次。 */
     private static final Set<UUID> LOW_POWER_WARNED = new HashSet<>();
+    /** 每台设备当前"能通到的最好链路 + 能听到几个台"。固定台界面直接读它。 */
+    private static final Map<UUID, Meter> METERS = new HashMap<>();
 
     /** 当前的投递通道。将来替换成 VoiceSink 即可。 */
     private static MessageSink sink = ChatMessageSink.INSTANCE;
@@ -310,6 +312,7 @@ public final class RadioManager {
             links.sort(Comparator.comparingDouble(S2CRadioState.SpeakerLink::quality).reversed());
 
             handled.add(self.id());
+            METERS.put(self.id(), new Meter(best, heard));
             warnLowPower(self);
             pushState(player, best, heard, true, links);
         }
@@ -318,9 +321,15 @@ public final class RadioManager {
         for (ServerPlayer player : level.players()) {
             if (!handled.contains(player.getUUID())) {
                 LOW_POWER_WARNED.remove(player.getUUID());
+                METERS.remove(player.getUUID());
                 pushState(player, 0.0D, 0, false, List.of());
             }
         }
+    }
+
+    /** 某台设备当前的信号计。设备离线或还没算过时返回零值。 */
+    public static Meter meterOf(UUID deviceId) {
+        return METERS.getOrDefault(deviceId, Meter.NONE);
     }
 
     /** 电量刚跌破阈值时提示一次。跨回去再跌破会重新提示。 */
@@ -434,18 +443,76 @@ public final class RadioManager {
         RadioEnergy.drain(stack, Config.ENERGY_COST_MESSAGE.get());
 
         int frequency = HandheldRadioItem.getFrequency(stack);
+        PlayerEndpoint endpoint = new PlayerEndpoint(sender, stack, Antennas.resolve(sender));
+        int delivered = broadcast(sender.serverLevel(), endpoint,
+                sender.getGameProfile().getName(), frequency, text);
+        reportDelivery(sender, delivered);
+    }
+
+    /**
+     * 从固定台发射一条文本。
+     *
+     * <p>校验全部在服务端：客户端的界面只是输入框，它说自己"开着机、有电"一概不算。
+     * 冷却按固定台自己记 —— 一台固定台可以被多个人操作，按玩家记会漏。
+     *
+     * @param operator 操作者，只用于把提示送回给他
+     * @return 是否真的发出去了
+     */
+    public static boolean transmitFromStation(FixedStationBlockEntity station, ServerPlayer operator,
+                                              long nowTick, String rawText) {
+        if (!station.isPowered()) {
+            operator.displayClientMessage(Component.translatable("message.openradio.tx_off")
+                    .withStyle(ChatFormatting.RED), true);
+            return false;
+        }
+        if (station.getEnergy() <= 0) {
+            operator.displayClientMessage(Component.translatable("message.openradio.station.no_power")
+                    .withStyle(ChatFormatting.RED), true);
+            return false;
+        }
+        if (!station.canTransmit()) {
+            operator.displayClientMessage(Component.translatable("message.openradio.low_power",
+                            String.format("%.0f%%", station.getEnergyRatio() * 100.0F))
+                    .withStyle(ChatFormatting.RED), true);
+            return false;
+        }
+        if (!station.tryTransmit(nowTick)) {
+            return false;
+        }
+
+        String text = sanitize(rawText, Config.MAX_MESSAGE_LENGTH.get());
+        if (text.isEmpty()) {
+            return false;
+        }
+
+        station.drain(Config.STATION_COST_MESSAGE.get());
+
+        // 呼号用操作者的名字：固定台自己没有名字，而接收方需要知道是谁在呼叫。
+        String callSign = operator.getGameProfile().getName();
+        int delivered = broadcast(operator.serverLevel(), new StationEndpoint(station),
+                callSign, station.getFrequency(), text);
+        reportDelivery(operator, delivered);
+        return true;
+    }
+
+    /**
+     * 把一条消息按当前地形和天气投递给所有能收到的同频设备。
+     *
+     * <p>玩家和固定台走同一条路径 —— 唯一的区别是发送方的增益来自哪里，
+     * 那个差异已经被 {@link RadioEndpoint#gainFor} 消化掉了。
+     */
+    private static int broadcast(ServerLevel level, RadioEndpoint sender, String senderName,
+                                 int frequency, String text) {
         RadioBand band = RadioBands.of(frequency);
-        double senderGain = Antennas.resolve(sender).gainFor(band);
+        double senderGain = sender.gainFor(band);
         int maxSteps = Config.MAX_RAY_STEPS.get();
         int maxReceivers = Config.MAX_RECEIVERS_PER_CHANNEL.get();
-        ServerLevel level = sender.serverLevel();
         int delivered = 0;
 
         for (RadioEndpoint receiver : collectEndpoints(level)) {
-            if (receiver.id().equals(sender.getUUID()) || receiver.frequency() != frequency) {
+            if (receiver.id().equals(sender.id()) || receiver.frequency() != frequency) {
                 continue;
             }
-
             // 发射时重新算一次，而不是读缓存：这一句话必须按"此刻"的地形和天气送达。
             double gain = Antennas.linkGain(senderGain, receiver.gainFor(band));
             double quality = SignalPropagation.compute(level,
@@ -455,13 +522,15 @@ public final class RadioManager {
                 continue;
             }
 
-            receiver.receive(new RadioMessage(
-                    sender.getGameProfile().getName(), frequency, quality, text));
+            receiver.receive(new RadioMessage(senderName, frequency, quality, text));
             if (++delivered >= maxReceivers) {
                 break;
             }
         }
+        return delivered;
+    }
 
+    private static void reportDelivery(ServerPlayer sender, int delivered) {
         if (delivered == 0) {
             RadioSounds.noCarrier(sender);
             sender.displayClientMessage(Component.translatable("message.openradio.tx_no_receiver")
@@ -501,6 +570,7 @@ public final class RadioManager {
         LAST_TRANSMIT_TICK.clear();
         IDLE_RESIDUAL.clear();
         LOW_POWER_WARNED.clear();
+        METERS.clear();
         VoicePowerLedger.clear();
         FixedStationIndex.clear();
         voiceSnapshot = VoiceSnapshot.EMPTY;
@@ -643,6 +713,16 @@ public final class RadioManager {
     /** 上一次同步出去的状态。 */
     private record SentState(double quality, int heard, boolean active,
                              List<S2CRadioState.SpeakerLink> links) {
+    }
+
+    /**
+     * 一台设备当前的信道读数。
+     *
+     * @param quality 能通到的最好那条链路的 Q
+     * @param heard   能收/能通到的同频设备数量（含固定台）
+     */
+    public record Meter(double quality, int heard) {
+        public static final Meter NONE = new Meter(0.0D, 0);
     }
 
     private RadioManager() {

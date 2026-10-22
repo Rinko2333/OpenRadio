@@ -13,6 +13,7 @@ import com.rinko.openradio.radio.AntennaProfile;
 import com.rinko.openradio.radio.FeederNetwork;
 import com.rinko.openradio.radio.FixedStationIndex;
 import com.rinko.openradio.radio.RadioConstants;
+import com.rinko.openradio.radio.RadioBand;
 import com.rinko.openradio.radio.RadioMessage;
 import com.rinko.openradio.radio.TextDegrader;
 import com.rinko.openradio.registry.ModBlockEntities;
@@ -79,6 +80,9 @@ public class FixedStationBlockEntity extends BlockEntity {
 
     /** 最近收到的消息，最新的在前。 */
     private final List<LoggedMessage> inbox = new ArrayList<>();
+
+    /** 上一次发射的 tick。按固定台记而不是按玩家记 —— 一台固定台可能被多个人操作。 */
+    private long lastTransmitTick = Long.MIN_VALUE / 2;
 
     /** 待机耗电的小数余额。按 tick 扣 0.x FE 时，直接取整会永远是 0。 */
     private double idleResidual;
@@ -273,6 +277,25 @@ public class FixedStationBlockEntity extends BlockEntity {
     /** 收件箱快照。界面会用它，现在只给诊断日志用。 */
     public List<LoggedMessage> inbox() {
         return List.copyOf(inbox);
+    }
+
+    /**
+     * 尝试占用一次发射窗口。
+     *
+     * @return 冷却已过则返回 true 并记下这次发射；否则 false
+     */
+    public boolean tryTransmit(long nowTick) {
+        long cooldown = Config.TRANSMIT_COOLDOWN_TICKS.get();
+        if (nowTick - lastTransmitTick < cooldown) {
+            return false;
+        }
+        lastTransmitTick = nowTick;
+        return true;
+    }
+
+    /** 天线相对某个波段是否装错了。界面用来显示警告。 */
+    public boolean antennaMismatched(RadioBand band) {
+        return antenna().mismatched(band);
     }
 
     /** 一条已降级的收信记录。 */

@@ -2,20 +2,17 @@
   "itemGroup.openradio": "Open Radio",
   "key.categories.openradio": "Open Radio",
   "key.openradio.open_panel": "Open radio panel",
-
   "item.openradio.handheld_radio": "Handheld Radio",
   "item.openradio.battery": "Battery",
   "item.openradio.antenna_short": "Shortwave Antenna",
   "item.openradio.antenna_medium": "Medium Wave Antenna",
   "item.openradio.antenna_long": "Longwave Antenna",
   "item.openradio.antenna_wideband": "Wideband Antenna",
-
   "antenna.openradio.bare": "no antenna",
   "antenna.openradio.short": "shortwave antenna",
   "antenna.openradio.medium": "medium wave antenna",
   "antenna.openradio.long": "longwave antenna",
   "antenna.openradio.wideband": "wideband antenna",
-
   "tooltip.openradio.frequency": "Frequency: %s  ·  %s",
   "tooltip.openradio.powered.on": "Powered on",
   "tooltip.openradio.powered.off": "Powered off",
@@ -28,7 +25,6 @@
   "tooltip.openradio.antenna.wideband": "Band: all (lower gain)",
   "tooltip.openradio.antenna.gain": "Range multiplier: %s",
   "tooltip.openradio.antenna.offhand": "Works in the offhand",
-
   "gui.openradio.title": "Handheld Radio",
   "gui.openradio.frequency": "Frequency",
   "gui.openradio.message": "Message",
@@ -51,11 +47,9 @@
   "gui.openradio.quality.poor": "heavy noise",
   "gui.openradio.quality.unusable": "unreadable",
   "gui.openradio.hint": "Enter confirms, Esc closes, sneak-right-click ejects battery",
-
   "band.openradio.short": "Shortwave",
   "band.openradio.medium": "Medium wave",
   "band.openradio.long": "Longwave",
-
   "message.openradio.powered_on": "Radio on  ·  %s",
   "message.openradio.powered_off": "Radio off  ·  %s",
   "message.openradio.tx_no_device": "No radio in hand",
@@ -66,7 +60,6 @@
   "message.openradio.battery_installed": "Battery installed  ·  %s (%s RF)",
   "message.openradio.battery_removed": "Battery removed",
   "message.openradio.low_power": "Low power %s  ·  receive only",
-
   "block.openradio.fixed_station": "Fixed Station",
   "block.openradio.solar_power": "Solar Power Unit",
   "block.openradio.antenna_base": "Antenna Base",
@@ -76,11 +69,24 @@
   "block.openradio.antenna_element_long": "Longwave Element",
   "block.openradio.antenna_element_wideband": "Wideband Element",
   "block.openradio.feeder_cable": "Feeder Cable",
-
   "message.openradio.station.status": "Fixed station  ·  %s  ·  %s / %s RF  ·  %s  ·  %s",
   "message.openradio.station.antenna": "%s  ·  %s blocks",
   "message.openradio.station.no_antenna": "no antenna connected",
   "message.openradio.station.no_power": "No power — connect a supply first",
   "gui.openradio.on": "online",
-  "gui.openradio.off": "offline"
+  "gui.openradio.off": "offline",
+  "gui.openradio.station.title": "Fixed Station",
+  "gui.openradio.station.frequency": "Freq",
+  "gui.openradio.station.energy": "Power",
+  "gui.openradio.station.signal": "Signal",
+  "gui.openradio.station.inbox": "Received",
+  "gui.openradio.station.inbox_empty": "nothing yet",
+  "gui.openradio.station.antenna_line": "%s  ·  %s blocks  ·  gain %s",
+  "gui.openradio.station.no_antenna": "no antenna",
+  "gui.openradio.station.mismatch": "mismatch (%s)",
+  "gui.openradio.station.meter": "Q %s  ·  %s unit(s)",
+  "gui.openradio.station.nobody": "no station on frequency",
+  "gui.openradio.station.transmit": "Transmit",
+  "gui.openradio.station.message": "Message",
+  "gui.openradio.station.syncing": "syncing…"
 }

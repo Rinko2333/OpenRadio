@@ -2,20 +2,17 @@
   "itemGroup.openradio": "开放无线电",
   "key.categories.openradio": "开放无线电",
   "key.openradio.open_panel": "打开电台面板",
-
   "item.openradio.handheld_radio": "手持电台",
   "item.openradio.battery": "电池",
   "item.openradio.antenna_short": "短波天线",
   "item.openradio.antenna_medium": "中波天线",
   "item.openradio.antenna_long": "长波天线",
   "item.openradio.antenna_wideband": "宽带天线",
-
   "antenna.openradio.bare": "无天线",
   "antenna.openradio.short": "短波天线",
   "antenna.openradio.medium": "中波天线",
   "antenna.openradio.long": "长波天线",
   "antenna.openradio.wideband": "宽带天线",
-
   "tooltip.openradio.frequency": "频率：%s  ·  %s",
   "tooltip.openradio.powered.on": "已开机",
   "tooltip.openradio.powered.off": "已关机",
@@ -28,7 +25,6 @@
   "tooltip.openradio.antenna.wideband": "适用波段：全部（增益较低）",
   "tooltip.openradio.antenna.gain": "射程系数：%s",
   "tooltip.openradio.antenna.offhand": "放在副手生效",
-
   "gui.openradio.title": "手持电台",
   "gui.openradio.frequency": "频率",
   "gui.openradio.message": "报文",
@@ -51,11 +47,9 @@
   "gui.openradio.quality.poor": "严重噪声",
   "gui.openradio.quality.unusable": "几乎不可读",
   "gui.openradio.hint": "回车确认 · Esc 关闭 · 潜行右键拆电池",
-
   "band.openradio.short": "短波",
   "band.openradio.medium": "中波",
   "band.openradio.long": "长波",
-
   "message.openradio.powered_on": "电台已开机  ·  %s",
   "message.openradio.powered_off": "电台已关机  ·  %s",
   "message.openradio.tx_no_device": "手里没有已开机的电台",
@@ -66,7 +60,6 @@
   "message.openradio.battery_installed": "电池已装好  ·  剩余 %s（%s RF）",
   "message.openradio.battery_removed": "电池已拆下",
   "message.openradio.low_power": "电量不足 %s  ·  只能接收，不能发射",
-
   "block.openradio.fixed_station": "固定电台",
   "block.openradio.solar_power": "太阳能电源",
   "block.openradio.antenna_base": "天线基座",
@@ -76,11 +69,24 @@
   "block.openradio.antenna_element_long": "长波振子",
   "block.openradio.antenna_element_wideband": "宽带振子",
   "block.openradio.feeder_cable": "馈线",
-
   "message.openradio.station.status": "固定电台  ·  %s  ·  %s / %s RF  ·  %s  ·  %s",
   "message.openradio.station.antenna": "%s  ·  %s 格",
   "message.openradio.station.no_antenna": "没有接天线",
   "message.openradio.station.no_power": "没有电，先接上电源再开机",
   "gui.openradio.on": "已开机",
-  "gui.openradio.off": "已关机"
+  "gui.openradio.off": "已关机",
+  "gui.openradio.station.title": "固定电台",
+  "gui.openradio.station.frequency": "频率",
+  "gui.openradio.station.energy": "电量",
+  "gui.openradio.station.signal": "信号",
+  "gui.openradio.station.inbox": "收信记录",
+  "gui.openradio.station.inbox_empty": "暂无记录",
+  "gui.openradio.station.antenna_line": "%s  ·  %s 格  ·  增益 %s",
+  "gui.openradio.station.no_antenna": "未接天线",
+  "gui.openradio.station.mismatch": "不匹配（%s）",
+  "gui.openradio.station.meter": "Q %s  ·  %s 台",
+  "gui.openradio.station.nobody": "无同频设备",
+  "gui.openradio.station.transmit": "发射",
+  "gui.openradio.station.message": "报文",
+  "gui.openradio.station.syncing": "正在同步…"
 }

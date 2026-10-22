@@ -81,34 +81,16 @@ public class FixedStationBlock extends BaseEntityBlock {
     }
 
     /**
-     * 右键：开关机。
+     * 右键固定台。
      *
-     * <p>没有电就不让开机 —— 一台"看起来开着但什么都不做"的机器比明确的拒绝更难排查。
+     * <p>开关机已经移进界面，这里刻意<b>什么都不做</b>。界面本身是客户端自己开的
+     * （见 {@code ClientStationInteraction}），客户端取消事件后服务端根本收不到这个包；
+     * 但万一有包到达，也不该顺手把机器切一次 —— 否则玩家点界面会看到状态莫名翻转。
      */
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
                                                Player player, BlockHitResult hit) {
-        if (level.isClientSide) {
-            return InteractionResult.SUCCESS;
-        }
-        if (!(level.getBlockEntity(pos) instanceof FixedStationBlockEntity station)) {
-            return InteractionResult.PASS;
-        }
-
-        if (!station.isPowered()) {
-            if (station.getEnergy() <= 0) {
-                player.displayClientMessage(
-                        net.minecraft.network.chat.Component.translatable("message.openradio.station.no_power"),
-                        true);
-                return InteractionResult.CONSUME;
-            }
-            station.setPowered(true);
-        } else {
-            station.setPowered(false);
-        }
-
-        player.displayClientMessage(station.describe(), true);
-        return InteractionResult.CONSUME;
+        return level.isClientSide ? InteractionResult.SUCCESS : InteractionResult.CONSUME;
     }
 
     /** 旁边接了/拆了馈线，天线缓存必须失效，否则要等下一次定时重扫。 */

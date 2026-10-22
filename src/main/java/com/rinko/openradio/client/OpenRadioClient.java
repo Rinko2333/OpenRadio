@@ -23,6 +23,8 @@ public class OpenRadioClient {
 
         modBus.addListener(ClientEvents::onRegisterKeyMappings);
         NeoForge.EVENT_BUS.addListener(ClientEvents::onClientTick);
+        // 右键固定台开界面。纯客户端行为，取消事件后连包都不会发出去。
+        NeoForge.EVENT_BUS.addListener(ClientStationInteraction::onRightClickBlock);
 
         OpenRadio.LOGGER.info("OpenRadio client loaded");
     }
