@@ -24,7 +24,7 @@ public final class ModCreativeTabs {
                         // 创造模式给一台装好满电电池的电台 —— 否则玩家拿到手
                         // 只会看到"没有电池"，还得自己去找电池、再研究怎么装。
                         ItemStack radio = new ItemStack(ModItems.HANDHELD_RADIO.get());
-                        RadioEnergy.setBattery(radio, BatteryItem.fresh(ModItems.BATTERY.get()));
+                        RadioEnergy.install(radio, BatteryItem.capacity());
                         output.accept(radio);
 
                         output.accept(BatteryItem.fresh(ModItems.BATTERY.get()));

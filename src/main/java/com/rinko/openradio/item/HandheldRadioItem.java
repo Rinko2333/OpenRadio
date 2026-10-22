@@ -7,6 +7,7 @@ import com.rinko.openradio.radio.RadioBands;
 import com.rinko.openradio.radio.RadioConstants;
 import com.rinko.openradio.radio.RadioSounds;
 import com.rinko.openradio.registry.ModDataComponents;
+import com.rinko.openradio.registry.ModItems;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -183,36 +184,37 @@ public class HandheldRadioItem extends Item {
      *
      * <p>整个过程同步完成，没有"界面开着的时候物品被别处改动"的时间窗口 ——
      * 这正是不要容器槽位换来的东西。
+     *
+     * <p>旧电池不是"扔掉"，而是把电台里剩余的电量原样变成一个电池物品还回去。
+     * 因为电台里存的是电量而不是一个 ItemStack（原因见 {@link RadioEnergy}）。
      */
     private static void installBattery(Player player, ItemStack radio, ItemStack held) {
-        ItemStack previous = RadioEnergy.battery(radio);
-        RadioEnergy.setBattery(radio, held.copyWithCount(1));
+        int previous = RadioEnergy.eject(radio);
+        RadioEnergy.install(radio, BatteryItem.getEnergy(held));
 
         boolean creative = player.getAbilities().instabuild;
         if (!creative) {
             held.shrink(1);
         }
 
-        // 旧电池还给玩家。创造模式不消耗新电池，所以也不需要特判返还。
-        if (!previous.isEmpty()) {
-            ItemStack returned = previous.copy();
-            if (!player.getInventory().add(returned)) {
-                player.drop(returned, false);
-            }
+        if (previous >= 0) {
+            give(player, BatteryItem.of(held.getItem(), previous));
         }
     }
 
     private static void ejectBattery(Player player, ItemStack radio) {
-        ItemStack previous = RadioEnergy.battery(radio);
-        if (previous.isEmpty()) {
+        int remaining = RadioEnergy.eject(radio);
+        if (remaining < 0) {
             return;
         }
-        RadioEnergy.setBattery(radio, ItemStack.EMPTY);
         setPowered(radio, false);
+        give(player, BatteryItem.of(ModItems.BATTERY.get(), remaining));
+    }
 
-        ItemStack returned = previous.copy();
-        if (!player.getInventory().add(returned)) {
-            player.drop(returned, false);
+    /** 东西先塞背包，塞不下就丢在脚边 —— 绝不能默默吞掉玩家的电池。 */
+    private static void give(Player player, ItemStack stack) {
+        if (!player.getInventory().add(stack)) {
+            player.drop(stack, false);
         }
     }
 

@@ -8,34 +8,37 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * 电台的供电。能量存在<b>电池物品</b>上，电池再嵌在电台的组件里 ——
- * 所以一块电池既能在电台里用，也能拿去别的机器上充。
+ * 电台的供电。
  *
- * <h2>为什么每次操作都 copy 一遍电池</h2>
+ * <h2>为什么电台里不存一个 ItemStack</h2>
  *
- * <p>数据组件是不可变共享对象：同一个组件实例可能同时被背包里的一叠、掉落物、
- * 客户端缓存引用。直接原地改电池的能量，会让所有持有这份组件的栈同时变化，
- * 表现为"电量乱跳"或"客户端凭空多电"。
- * 所以统一改成：取出来 → copy → 改副本 → set 回去。
+ * <p>原本的写法是把电池物品整个塞进电台的组件里。这条路在 NeoForge 上走不通：
+ * {@code ItemStack.set()} 会校验组件值必须<b>实现 equals/hashCode 且不可变</b>，
+ * 而 {@code ItemStack} 正好没有 equals，于是抛
+ * {@code IllegalArgumentException: Data components must implement equals and hashCode}，
+ * 表现是打开创造模式物品栏瞬间崩溃。
+ *
+ * <p>现在拆成"一个布尔 + 一个 int"：{@code BATTERY_PRESENT} 表示装着电池，
+ * {@code ENERGY} 表示那块电池剩下的电量。换电池时把电量取出来重新变成一个电池物品还回去，
+ * 对外语义和真实电池一模一样，而且同步的数据还更少。
+ *
+ * <p>副作用是"电池型号"没有地方放了 —— 现在只有一种电池所以无所谓；
+ * 将来要做不同容量时，加一个容量组件或档位枚举即可，仍然不需要嵌套物品。
  */
 public final class RadioEnergy {
 
-    /** 电台里装的那块电池，没有电池时返回 {@link ItemStack#EMPTY}。 */
-    public static ItemStack battery(ItemStack radio) {
-        ItemStack battery = radio.get(ModDataComponents.BATTERY.get());
-        return battery == null ? ItemStack.EMPTY : battery;
-    }
-
-    public static void setBattery(ItemStack radio, ItemStack battery) {
-        radio.set(ModDataComponents.BATTERY.get(), battery == null ? ItemStack.EMPTY : battery);
-    }
-
     public static boolean hasBattery(ItemStack radio) {
-        return !battery(radio).isEmpty();
+        Boolean value = radio.get(ModDataComponents.BATTERY_PRESENT.get());
+        return value != null && value;
     }
 
     public static int stored(ItemStack radio) {
-        return BatteryItem.getEnergy(battery(radio));
+        Integer value = radio.get(ModDataComponents.ENERGY.get());
+        return value == null ? 0 : value;
+    }
+
+    private static void setStored(ItemStack radio, int energy) {
+        radio.set(ModDataComponents.ENERGY.get(), Mth.clamp(energy, 0, BatteryItem.capacity()));
     }
 
     public static int capacity(ItemStack radio) {
@@ -55,40 +58,52 @@ public final class RadioEnergy {
     /**
      * 消耗电量。
      *
-     * @return 实际消耗掉的量。电量不足时会返回能拿到的部分，调用方据此判断"够不够发"。
+     * @return 实际消耗掉的量
      */
     public static int drain(ItemStack radio, int amount) {
         if (amount <= 0 || !hasBattery(radio)) {
             return 0;
         }
-        ItemStack current = battery(radio);
-        int have = BatteryItem.getEnergy(current);
-        if (have <= 0) {
-            return 0;
-        }
+        int have = stored(radio);
         int taken = Math.min(have, amount);
-        ItemStack updated = current.copy();
-        BatteryItem.setEnergy(updated, have - taken);
-        setBattery(radio, updated);
+        if (taken > 0) {
+            setStored(radio, have - taken);
+        }
         return taken;
     }
 
-    /** 往电台里的电池充电。 */
+    /** 充电。返回实际接受的电量。 */
     public static int charge(ItemStack radio, int amount) {
         if (amount <= 0 || !hasBattery(radio)) {
             return 0;
         }
-        ItemStack current = battery(radio);
-        int have = BatteryItem.getEnergy(current);
-        int cap = BatteryItem.capacity();
-        int accepted = Math.min(cap - have, amount);
-        if (accepted <= 0) {
-            return 0;
+        int have = stored(radio);
+        int accepted = Math.min(BatteryItem.capacity() - have, amount);
+        if (accepted > 0) {
+            setStored(radio, have + accepted);
         }
-        ItemStack updated = current.copy();
-        BatteryItem.setEnergy(updated, have + accepted);
-        setBattery(radio, updated);
-        return accepted;
+        return Math.max(0, accepted);
+    }
+
+    /**
+     * 拆下电池。
+     *
+     * @return 那块电池取出来时剩下的电量；本来就没装电池返回 -1
+     */
+    public static int eject(ItemStack radio) {
+        if (!hasBattery(radio)) {
+            return -1;
+        }
+        int remaining = stored(radio);
+        radio.set(ModDataComponents.BATTERY_PRESENT.get(), false);
+        setStored(radio, 0);
+        return remaining;
+    }
+
+    /** 装入一块电量已经确定的电池。调用方负责消耗新电池物品、把旧电池还给玩家。 */
+    public static void install(ItemStack radio, int energy) {
+        radio.set(ModDataComponents.BATTERY_PRESENT.get(), true);
+        setStored(radio, energy);
     }
 
     private RadioEnergy() {

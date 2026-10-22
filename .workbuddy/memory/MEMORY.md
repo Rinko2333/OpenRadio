@@ -24,6 +24,10 @@ modid `openradio`，包 `com.rinko.openradio`。
 - `StreamCodec` 字段类型用 `io.netty.buffer.ByteBuf`，不能用 `FriendlyByteBuf`
 - 事件总线一律显式 `addListener`，不用 `@EventBusSubscriber` 自动分派
 - 物品默认值不要塞进 `Item.Properties.component(...)`，静态初始化时 DeferredHolder 未解析
+- **DataComponent 不能存 `ItemStack`**：`ItemStack.set()` 会校验组件值不可变且实现
+  equals/hashCode，`ItemStack` 没有 equals → 直接抛 `IllegalArgumentException`（表现为
+  打开创造物品栏崩）。要"在物品里放物品"，拆成 `boolean present` + 数值组件，
+  取出时重新构造物品。同理别塞任何可变集合/可变对象。
 - **配置缓存必须关闭**（`org.gradle.configuration-cache=false`）：多个 `run*` 任务
   会同时保持 Gradle 进程存活，并发读写 `.gradle/configuration-cache` 会把临时文件搞坏
 - **不要缓存 ItemStack 引用**：服务端同步时原版是整个替换槽位里的 ItemStack，

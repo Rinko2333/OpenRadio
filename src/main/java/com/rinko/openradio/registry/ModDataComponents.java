@@ -6,7 +6,6 @@ import com.rinko.openradio.OpenRadio;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -30,26 +29,28 @@ public final class ModDataComponents {
                     .persistent(Codec.BOOL)
                     .networkSynchronized(ByteBufCodecs.BOOL));
 
-    /** 电池里存了多少 FE。只在电池物品上出现。 */
+    /** 能量。电池物品用它存自电量；电台用它存"里面那块电池"的电量。 */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> ENERGY =
             COMPONENTS.registerComponentType("energy", builder -> builder
                     .persistent(Codec.INT)
                     .networkSynchronized(ByteBufCodecs.VAR_INT));
 
     /**
-     * 电台里装的那块电池。
+     * 电台里有没有装电池。
      *
-     * <p>用组件而不是额外槽位，是为了<b>彻底避开容器 UI</b>：没有 {@code Menu}、
-     * 没有跨端同步的槽位，也就没有"物品套物品"的复制漏洞面。换电池是服务端
-     * 一个 tick 内完成的原子操作。
+     * <p><b>不能直接存一个 ItemStack。</b>NeoForge 在 {@code ItemStack.set()} 里会校验
+     * 组件值"实现了 equals/hashCode 且不可变"，而 {@code ItemStack} 恰恰没有 equals ——
+     * 直接存会抛 {@code IllegalArgumentException: Data components must implement equals
+     * and hashCode}，表现是打开创造模式物品栏直接崩。
      *
-     * <p>同步用 OPTIONAL 版本：空电池必须能正常序列化，否则拆掉电池后
-     * 客户端会收到一个无法解码的包。
+     * <p>所以电池拆成"一个布尔 + 一个 int"：{@code BATTERY_PRESENT} 表示装着，
+     * {@link #ENERGY} 表示那块电池的剩余电量。换电池时把电量取出来、
+     * 重新变成一个电池物品还给玩家，语义完全一样，而且少同步一个嵌套栈。
      */
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ItemStack>> BATTERY =
-            COMPONENTS.registerComponentType("battery", builder -> builder
-                    .persistent(ItemStack.OPTIONAL_CODEC)
-                    .networkSynchronized(ItemStack.OPTIONAL_STREAM_CODEC));
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Boolean>> BATTERY_PRESENT =
+            COMPONENTS.registerComponentType("battery_present", builder -> builder
+                    .persistent(Codec.BOOL)
+                    .networkSynchronized(ByteBufCodecs.BOOL));
 
     /** 静噪阈值（0–1）：Q 低于该值时不播放音频，当作没有信号。 */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Float>> SQUELCH =
