@@ -38,6 +38,22 @@ public class HandheldRadioItem extends Item {
         super(properties);
     }
 
+    /**
+     * 只有"换成了另一件物品"或"换了持握槽位"才播放重新装备动画。
+     *
+     * <p>NeoForge 的默认实现是 {@code !oldStack.equals(newStack)}，而 {@code ItemStack.equals}
+     * 比较的是<b>完整的组件集合</b>。电台的电量每个传播周期都会扣一点，频率、开关机也会变，
+     * 于是每一次状态变化都被判定成"换了物品"，第一人称视角里物品就会下沉再抬起一次 ——
+     * 看起来像每扣一次电就重新掏一次电台。
+     *
+     * <p>改成只比较物品本身：同一台电台的任何状态变化都不算换手，
+     * 真的切物品（换手、切槽、换成电池）仍然保留动画。
+     */
+    @Override
+    public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
+        return slotChanged || !ItemStack.isSameItem(oldStack, newStack);
+    }
+
     // ------------------------------------------------------------ 频率
 
     public static int getFrequency(ItemStack stack) {
