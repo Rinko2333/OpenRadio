@@ -3,6 +3,7 @@ package com.rinko.openradio.registry;
 import com.rinko.openradio.OpenRadio;
 import com.rinko.openradio.energy.RadioEnergy;
 import com.rinko.openradio.item.BatteryItem;
+import com.rinko.openradio.item.HandheldMicItem;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -34,6 +35,9 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.ANTENNA_WIDEBAND.get());
 
                         output.accept(ModItems.FIXED_STATION.get());
+                        // 手咪同样给满电：它内置电池，没有"装电池"这个步骤，
+                        // 给一只 0 电的手咪只会让玩家以为物品坏了。
+                        output.accept(HandheldMicItem.fresh(ModItems.HANDHELD_MIC.get()));
                         output.accept(ModItems.SOLAR_POWER.get());
 
                         output.accept(ModItems.ANTENNA_BASE.get());

@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import com.rinko.openradio.block.FixedStationBlockEntity;
 
@@ -51,6 +52,28 @@ public final class FixedStationIndex {
         if (set.isEmpty()) {
             BY_LEVEL.remove(level.dimension());
         }
+    }
+
+    /**
+     * 按身份找一台已加载的固定台。
+     *
+     * <p>只在一个维度里找，而且只找<b>当前加载着</b>的 —— 手咪是十格内的无线附件，
+     * 跨维度或跨区块不可能连上，这两种情况返回 null 就是正确答案。
+     *
+     * <p>用 UUID 而不是坐标匹配：坐标会被"拆了在原地重建"这种情况骗到，
+     * UUID 不会。见 {@code ModDataComponents#MIC_STATION}。
+     */
+    public static FixedStationBlockEntity find(ServerLevel level, UUID stationId) {
+        Set<FixedStationBlockEntity> set = BY_LEVEL.get(level.dimension());
+        if (set == null || set.isEmpty()) {
+            return null;
+        }
+        for (FixedStationBlockEntity station : set) {
+            if (station.stationId().equals(stationId)) {
+                return station;
+            }
+        }
+        return null;
     }
 
     /**

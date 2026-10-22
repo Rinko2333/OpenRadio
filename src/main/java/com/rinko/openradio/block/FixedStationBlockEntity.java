@@ -14,6 +14,7 @@ import com.rinko.openradio.radio.FeederNetwork;
 import com.rinko.openradio.radio.FixedStationIndex;
 import com.rinko.openradio.radio.RadioConstants;
 import com.rinko.openradio.radio.RadioBand;
+import com.rinko.openradio.radio.RadioManager;
 import com.rinko.openradio.radio.RadioMessage;
 import com.rinko.openradio.radio.TextDegrader;
 import com.rinko.openradio.registry.ModBlockEntities;
@@ -233,6 +234,10 @@ public class FixedStationBlockEntity extends BlockEntity {
     public void setRemoved() {
         if (getLevel() instanceof ServerLevel) {
             FixedStationIndex.unregister(this);
+        }
+        // 读数与链路缓存也一并丢掉，否则跨区块跑一趟世界就留一份永不释放的残留。
+        if (stationId != null) {
+            RadioManager.forgetDevice(stationId);
         }
         super.setRemoved();
     }

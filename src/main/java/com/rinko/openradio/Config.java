@@ -89,6 +89,14 @@ public final class Config {
     /** 低于该电量比例后只能收不能发。 */
     public static final ModConfigSpec.DoubleValue ENERGY_LOW_THRESHOLD;
 
+    // ---------------------------------------------------------- 无线手咪
+
+    /** 手咪内置电池的容量（FE）。 */
+    public static final ModConfigSpec.IntValue MIC_CAPACITY;
+
+    /** 手咪能离固定台多远（格）。超出就脱网。 */
+    public static final ModConfigSpec.DoubleValue MIC_REACH;
+
     // ---------------------------------------------------------- 固定台
 
     /** 固定台的内部电容（FE）。 */
@@ -271,6 +279,19 @@ public final class Config {
         STATION_COST_MESSAGE = builder
                 .comment("固定台发一条文本的耗电（FE）。比手台高，因为发射功率更大。")
                 .defineInRange("costPerMessage", 200, 0, 1_000_000);
+        builder.pop();
+
+        builder.comment("无线手咪。固定台的话筒：只用固定台的天线和频率收发语音，自己不能调频、不能发文本。")
+                .push("mic");
+        MIC_CAPACITY = builder
+                .comment("手咪内置电池的容量（FE）。比手台的电池小一半：它只驱动语音链路，",
+                        "而且真正吃电的是固定台那边。不做成可更换电池 —— 手咪是附件，不是第二台电台。")
+                .defineInRange("capacity", 8_000, 100, 2_000_000);
+        MIC_REACH = builder
+                .comment("手咪离固定台多远之后脱网（格）。",
+                        "超出是<b>直接断</b>而不是逐渐变差：手咪是无线连固定台的，",
+                        "走远了是掉线，不是信号弱。两者在界面上要给不同的提示，混淆了很难排查。")
+                .defineInRange("reach", 10.0D, 1.0D, 64.0D);
         builder.pop();
 
         builder.comment("太阳能电源。放在固定台正上方即可供电，也可以用管道转接。").push("solar");

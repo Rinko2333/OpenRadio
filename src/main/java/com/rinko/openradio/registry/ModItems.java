@@ -3,6 +3,7 @@ package com.rinko.openradio.registry;
 import com.rinko.openradio.OpenRadio;
 import com.rinko.openradio.item.AntennaItem;
 import com.rinko.openradio.item.BatteryItem;
+import com.rinko.openradio.item.HandheldMicItem;
 import com.rinko.openradio.item.HandheldRadioItem;
 import com.rinko.openradio.radio.AntennaKind;
 
@@ -24,6 +25,13 @@ public final class ModItems {
             "battery",
             BatteryItem::new,
             new Item.Properties().stacksTo(16));
+
+    // 无线手咪：固定台的话筒。只收发语音，没有频率和开关机 ——
+    // 这两个"操作"会让它变成第二台电台，那就失去"附件"的意义了。
+    public static final DeferredItem<HandheldMicItem> HANDHELD_MIC = ITEMS.registerItem(
+            "handheld_mic",
+            HandheldMicItem::new,
+            new Item.Properties().stacksTo(1));
 
     // 天线全部 stacksTo(1)：它们是装备而不是消耗品。叠起来反而会让
     // "手里这条到底是哪个波段的"变得容易看错。

@@ -1,6 +1,7 @@
 package com.rinko.openradio.energy;
 
 import com.rinko.openradio.item.BatteryItem;
+import com.rinko.openradio.item.HandheldMicItem;
 import com.rinko.openradio.registry.ModBlockEntities;
 import com.rinko.openradio.registry.ModItems;
 
@@ -29,6 +30,12 @@ public final class ModCapabilities {
         event.registerItem(Capabilities.EnergyStorage.ITEM,
                 (stack, context) -> new RadioStorage(stack),
                 ModItems.HANDHELD_RADIO.get());
+
+        // 手咪：内置电池，只进不出。它是要拿去充电座上的，
+        // 不像固定台那样自己有电网接口。
+        event.registerItem(Capabilities.EnergyStorage.ITEM,
+                (stack, context) -> new MicStorage(stack),
+                ModItems.HANDHELD_MIC.get());
 
         // 固定台：正面（操作面板）返回 null，能力系统据此判定"这一面没有能量接口"，
         // Mekanism 的通用线缆与其他管道自然不会连上来。用数据表达规则，不靠事件拦截。
@@ -130,6 +137,47 @@ public final class ModCapabilities {
         @Override
         public boolean canReceive() {
             return RadioEnergy.hasBattery(stack);
+        }
+    }
+
+    /** 手咪：内置电池，只进不出。 */
+    private static final class MicStorage implements IEnergyStorage {
+        private final ItemStack stack;
+
+        private MicStorage(ItemStack stack) {
+            this.stack = stack;
+        }
+
+        @Override
+        public int receiveEnergy(int amount, boolean simulate) {
+            return simulate
+                    ? Math.min(HandheldMicItem.capacity() - HandheldMicItem.stored(stack), Math.max(0, amount))
+                    : HandheldMicItem.charge(stack, amount);
+        }
+
+        @Override
+        public int extractEnergy(int amount, boolean simulate) {
+            return 0;
+        }
+
+        @Override
+        public int getEnergyStored() {
+            return HandheldMicItem.stored(stack);
+        }
+
+        @Override
+        public int getMaxEnergyStored() {
+            return HandheldMicItem.capacity();
+        }
+
+        @Override
+        public boolean canExtract() {
+            return false;
+        }
+
+        @Override
+        public boolean canReceive() {
+            return true;
         }
     }
 

@@ -88,5 +88,17 @@
   "gui.openradio.station.nobody": "无同频设备",
   "gui.openradio.station.transmit": "发射",
   "gui.openradio.station.message": "报文",
-  "gui.openradio.station.syncing": "正在同步…"
+  "gui.openradio.station.syncing": "正在同步…",
+  "item.openradio.handheld_mic": "无线手咪",
+  "tooltip.openradio.mic.energy": "电池 %s / %s RF",
+  "tooltip.openradio.mic.bound": "已绑定固定台 —— 靠近即可收发语音",
+  "tooltip.openradio.mic.unbound": "未绑定 —— 蹲下右键固定台",
+  "message.openradio.mic.bound": "手咪已绑定固定台 [%s]",
+  "message.openradio.mic.rebound": "手咪已改绑到 [%s]",
+  "message.openradio.mic.unbound": "手咪已解绑",
+  "message.openradio.mic.status.linked": "手咪 · 已连接固定台",
+  "message.openradio.mic.status.unbound": "手咪 · 未绑定 —— 蹲下右键固定台",
+  "message.openradio.mic.status.gone": "手咪 · 绑定的固定台不在了",
+  "message.openradio.mic.status.off": "手咪 · 固定台未开机",
+  "message.openradio.mic.status.far": "手咪 · 脱网 %s / %s 格"
 }

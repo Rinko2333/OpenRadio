@@ -1,8 +1,11 @@
 package com.rinko.openradio.registry;
 
+import java.util.UUID;
+
 import com.mojang.serialization.Codec;
 import com.rinko.openradio.OpenRadio;
 
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -57,6 +60,21 @@ public final class ModDataComponents {
             COMPONENTS.registerComponentType("squelch", builder -> builder
                     .persistent(Codec.FLOAT)
                     .networkSynchronized(ByteBufCodecs.FLOAT));
+
+    /**
+     * 无线手咪绑定的固定台身份。
+     *
+     * <p>存的是固定台自己的 <b>UUID</b>，不是方块坐标。差别在固定台被拆掉之后：
+     * 坐标为凭的话，原地重建一台新机器（可能是别人的、可能波段完全不同）会让手咪
+     * 静默地绑上去 —— 玩家看起来"绑定还在"，实际已经连到别的台了。
+     * 用 UUID 则新机器是新身份，手咪明确报"绑定的固定台已不存在"，玩家知道要重绑。
+     *
+     * <p>没有这个组件 = 还没绑定。
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<UUID>> MIC_STATION =
+            COMPONENTS.registerComponentType("mic_station", builder -> builder
+                    .persistent(UUIDUtil.CODEC)
+                    .networkSynchronized(UUIDUtil.STREAM_CODEC));
 
     public static void register(IEventBus modBus) {
         COMPONENTS.register(modBus);

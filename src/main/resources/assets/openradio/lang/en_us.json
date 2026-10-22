@@ -88,5 +88,17 @@
   "gui.openradio.station.nobody": "no station on frequency",
   "gui.openradio.station.transmit": "Transmit",
   "gui.openradio.station.message": "Message",
-  "gui.openradio.station.syncing": "syncing…"
+  "gui.openradio.station.syncing": "syncing…",
+  "item.openradio.handheld_mic": "Wireless Handset",
+  "tooltip.openradio.mic.energy": "Battery %s / %s RF",
+  "tooltip.openradio.mic.bound": "Linked to a fixed station — stay close to use it",
+  "tooltip.openradio.mic.unbound": "Unlinked — sneak + right-click a fixed station",
+  "message.openradio.mic.bound": "Handset linked to station [%s]",
+  "message.openradio.mic.rebound": "Handset relinked to [%s]",
+  "message.openradio.mic.unbound": "Handset unlinked",
+  "message.openradio.mic.status.linked": "Handset · linked to station",
+  "message.openradio.mic.status.unbound": "Handset · not linked — sneak + right-click a station",
+  "message.openradio.mic.status.gone": "Handset · the linked station is gone",
+  "message.openradio.mic.status.off": "Handset · station is switched off",
+  "message.openradio.mic.status.far": "Handset · out of range %s / %s blocks"
 }

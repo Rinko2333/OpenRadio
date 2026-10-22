@@ -15,6 +15,7 @@ import com.rinko.openradio.Config;
 import com.rinko.openradio.block.FixedStationBlockEntity;
 import com.rinko.openradio.energy.RadioEnergy;
 import com.rinko.openradio.energy.VoicePowerLedger;
+import com.rinko.openradio.item.HandheldMicItem;
 import com.rinko.openradio.item.HandheldRadioItem;
 import com.rinko.openradio.network.S2CRadioState;
 import com.rinko.openradio.radio.delivery.ChatMessageSink;
@@ -60,6 +61,9 @@ public final class RadioManager {
     private static final Map<UUID, Double> IDLE_RESIDUAL = new HashMap<>();
     /** 已经提示过"电量低"的玩家，用于只提示一次。 */
     private static final Set<UUID> LOW_POWER_WARNED = new HashSet<>();
+
+    /** 手咪上一次的状态，用于"只在变化时提示"。 */
+    private static final Map<UUID, HandheldMicItem.Status> MIC_STATUS = new HashMap<>();
     /** 每台设备当前"能通到的最好链路 + 能听到几个台"。固定台界面直接读它。 */
     private static final Map<UUID, Meter> METERS = new HashMap<>();
 
@@ -122,6 +126,19 @@ public final class RadioManager {
                 if (owed <= 0) {
                     continue;
                 }
+                // 和 collectEndpoints 用同一套优先级：谁在链路里工作，就由谁付账。
+                // 不一致的话会出现"手咪在发射、手台在掉电"这种查不出来的怪事。
+                ItemStack mic = HandheldMicItem.findMic(player);
+                if (!mic.isEmpty()) {
+                    FixedStationBlockEntity station = HandheldMicItem.resolve(player, mic);
+                    if (station != null) {
+                        HandheldMicItem.drain(mic, owed);
+                        // 固定台也付一份：真正在天上辐射功率的是它。
+                        // 手咪那边只是话筒和调制，成本本来就该低。
+                        station.drain(owed);
+                        continue;
+                    }
+                }
                 ItemStack radio = HandheldRadioItem.findPoweredRadio(player);
                 if (!radio.isEmpty()) {
                     RadioEnergy.drain(radio, owed);
@@ -163,7 +180,62 @@ public final class RadioManager {
         }
 
         computeLinks(level, endpoints, deadline);
+        notifyMicStatus(level);
         updateClientStates(level, endpoints, routes);
+    }
+
+    /**
+     * 手咪状态变化时给玩家一句明确的话。
+     *
+     * <p>只在<b>变化时</b>发：手咪每 10 tick 判定一次，每次都发会刷屏。
+     *
+     * <p>为什么要逐状态说清楚，而不是只报"手咪不可用"：这四种情况玩家要做的事
+     * 完全不同（去绑 / 去开机 / 走回来 / 放弃这只被拆掉的台）。
+     * 一句笼统的"不可用"等于让玩家自己猜。
+     *
+     * <p>{@code MIC_STATUS} 不做按维度清理：它最多只装"见过的玩家数"条，
+     * 而玩家重新登录时状态通常没变，本来也不需要再提示一次。
+     */
+    private static void notifyMicStatus(ServerLevel level) {
+        for (ServerPlayer player : level.players()) {
+            ItemStack mic = HandheldMicItem.findMic(player);
+            if (mic.isEmpty()) {
+                continue;
+            }
+            HandheldMicItem.Status status = HandheldMicItem.statusOf(player, mic);
+            if (MIC_STATUS.put(player.getUUID(), status) == status) {
+                continue;
+            }
+            player.displayClientMessage(describeMic(level, player, mic, status), true);
+        }
+    }
+
+    private static Component describeMic(ServerLevel level, ServerPlayer player, ItemStack mic,
+                                         HandheldMicItem.Status status) {
+        return switch (status) {
+            case LINKED -> Component.translatable("message.openradio.mic.status.linked")
+                    .withStyle(ChatFormatting.GREEN);
+            case UNBOUND -> Component.translatable("message.openradio.mic.status.unbound")
+                    .withStyle(ChatFormatting.GRAY);
+            case STATION_GONE -> Component.translatable("message.openradio.mic.status.gone")
+                    .withStyle(ChatFormatting.RED);
+            case STATION_OFF -> Component.translatable("message.openradio.mic.status.off")
+                    .withStyle(ChatFormatting.GOLD);
+            case TOO_FAR -> {
+                String distance = "?";
+                UUID stationId = HandheldMicItem.boundStation(mic);
+                FixedStationBlockEntity station = stationId == null
+                        ? null
+                        : FixedStationIndex.find(level, stationId);
+                if (station != null) {
+                    distance = String.format("%.1f",
+                            Math.sqrt(HandheldMicItem.distanceSqr(player, station.getBlockPos())));
+                }
+                yield Component.translatable("message.openradio.mic.status.far", distance,
+                                String.format("%.0f", HandheldMicItem.reach()))
+                        .withStyle(ChatFormatting.YELLOW);
+            }
+        };
     }
 
     /**
@@ -203,6 +275,19 @@ public final class RadioManager {
     private static List<RadioEndpoint> collectEndpoints(ServerLevel level) {
         List<RadioEndpoint> endpoints = new ArrayList<>();
         for (ServerPlayer player : level.players()) {
+            // 手咪优先。它是"我正在用这台固定台"的明确声明，
+            // 比"手里顺便还拿着手台"更能代表玩家此刻的意图。
+            // 手咪失效（没绑 / 超出范围 / 固定台没开机）时静默回退到手台 ——
+            // 不回退的话，手咪一脱网玩家就彻底失联，还以为是自己设备坏了。
+            ItemStack mic = HandheldMicItem.findMic(player);
+            if (!mic.isEmpty()) {
+                FixedStationBlockEntity station = HandheldMicItem.resolve(player, mic);
+                if (station != null) {
+                    endpoints.add(new MicEndpoint(player, mic, station));
+                    continue;
+                }
+            }
+
             ItemStack stack = HandheldRadioItem.findPoweredRadio(player);
             if (!stack.isEmpty()) {
                 endpoints.add(new PlayerEndpoint(player, stack, Antennas.resolve(player)));
@@ -280,11 +365,6 @@ public final class RadioManager {
         Set<UUID> handled = new HashSet<>();
 
         for (RadioEndpoint self : endpoints) {
-            ServerPlayer player = self.player();
-            if (player == null) {
-                continue;
-            }
-
             List<S2CRadioState.SpeakerLink> links = new ArrayList<>();
             double best = 0.0D;
             int heard = 0;
@@ -296,23 +376,34 @@ public final class RadioManager {
                 if (quality == null || quality <= 0.0D) {
                     continue;
                 }
+                // 计数与最好 Q 对<b>所有</b>端点都算，包括固定台 —— 界面上的
+                // "信号 / 几台设备"问的是"这个信道现在通不通"，和"我是谁"无关。
                 heard++;
                 best = Math.max(best, quality);
 
+                // 逐说话人链路与语音路由只对玩家有意义：固定台不会说话，
+                // 也没有 SVC 连接可以接收音频。
                 ServerPlayer speaker = other.player();
-                if (speaker == null) {
+                ServerPlayer listener = self.player();
+                if (speaker == null || listener == null) {
                     continue;
                 }
                 links.add(new S2CRadioState.SpeakerLink(speaker.getUUID(), quality.floatValue()));
                 // 顺手把这张表反过来记一份：说话者 → 该转发给谁。
                 // 语音包到达时跑在 SVC 线程上，没有机会遍历世界，只能查这张现成的表。
                 routes.computeIfAbsent(speaker.getUUID(), key -> new HashMap<>())
-                        .put(player.getUUID(), quality.floatValue());
+                        .put(listener.getUUID(), quality.floatValue());
+            }
+
+            // 读数对每个端点都要落库：固定台界面就是靠它显示"几台设备"的。
+            METERS.put(self.id(), new Meter(best, heard));
+
+            ServerPlayer player = self.player();
+            if (player == null) {
+                continue;
             }
             links.sort(Comparator.comparingDouble(S2CRadioState.SpeakerLink::quality).reversed());
-
             handled.add(self.id());
-            METERS.put(self.id(), new Meter(best, heard));
             warnLowPower(self);
             pushState(player, best, heard, true, links);
         }
@@ -330,6 +421,18 @@ public final class RadioManager {
     /** 某台设备当前的信号计。设备离线或还没算过时返回零值。 */
     public static Meter meterOf(UUID deviceId) {
         return METERS.getOrDefault(deviceId, Meter.NONE);
+    }
+
+    /**
+     * 设备卸载时清掉它的读数与链路缓存。
+     *
+     * <p>不清的话，一张 400 万格的存档玩久了，{@code METERS} 和 {@code LINK_QUALITY}
+     * 会按"曾经出现过多少台固定台"一直增长 —— 每条都只有几十字节，但永不释放。
+     * 固定台的 UUID 是它自己 NBT 里的，重新加载回来还是同一个，所以这里删掉不会有副作用。
+     */
+    public static void forgetDevice(UUID deviceId) {
+        METERS.remove(deviceId);
+        LINK_QUALITY.keySet().removeIf(key -> key.from().equals(deviceId) || key.to().equals(deviceId));
     }
 
     /** 电量刚跌破阈值时提示一次。跨回去再跌破会重新提示。 */
@@ -571,6 +674,7 @@ public final class RadioManager {
         IDLE_RESIDUAL.clear();
         LOW_POWER_WARNED.clear();
         METERS.clear();
+        MIC_STATUS.clear();
         VoicePowerLedger.clear();
         FixedStationIndex.clear();
         voiceSnapshot = VoiceSnapshot.EMPTY;
@@ -708,6 +812,77 @@ public final class RadioManager {
 
     /** 有向链路：从 {@code from} 发射、被 {@code to} 接收。 */
     private record LinkKey(UUID from, UUID to) {
+    }
+
+    /**
+     * 无线手咪。
+     *
+     * <p>这是"玩家借固定台的天线收发语音"的唯一入口。注意它的 {@link #id()}
+     * 仍然是<b>玩家 UUID</b> —— SVC 的语音包是按玩家连接转发的，
+     * 端点的身份必须和音频通道那一头对得上。变的是位置、频率和增益：
+     *
+     * <ul>
+     *   <li>位置取固定台方块中心：天线长在机器上，不长在玩家身上。</li>
+     *   <li>频率取固定台：手咪没有自己的频率，见 {@link HandheldMicItem}。</li>
+     *   <li>增益取固定台的多方块天线，所以塔搭得越高，手咪通得越远。</li>
+     * </ul>
+     *
+     * <p>两个拿着手咪连同一台固定台的玩家会得到同一个位置，于是他们之间的 Q = 1。
+     * 这不是漏洞 —— 他们本来就共用同一台收发机。
+     */
+    private record MicEndpoint(ServerPlayer player, ItemStack mic, FixedStationBlockEntity station)
+            implements RadioEndpoint {
+        @Override
+        public UUID id() {
+            return player.getUUID();
+        }
+
+        @Override
+        public Vec3 position() {
+            return Vec3.atCenterOf(station.getBlockPos());
+        }
+
+        @Override
+        public int frequency() {
+            return station.getFrequency();
+        }
+
+        @Override
+        public double gainFor(RadioBand band) {
+            return station.antenna().gainFor(band);
+        }
+
+        /**
+         * 手咪和固定台都得起得来：手咪是话筒，固定台才是发射机。
+         *
+         * <p>固定台那边还要看 {@code canTransmit}（电量是否过阈值），不能只看开没开机 ——
+         * 一台电量见底的固定台开机也没法发射。
+         */
+        @Override
+        public boolean canTransmit() {
+            return HandheldMicItem.canTransmit(mic) && station.canTransmit();
+        }
+
+        @Override
+        public float energyRatio() {
+            return HandheldMicItem.ratio(mic);
+        }
+
+        @Override
+        public void drain(int amount) {
+            HandheldMicItem.drain(mic, amount);
+        }
+
+        @Override
+        public void receive(RadioMessage message) {
+            sink.deliver(player, message);
+            RadioSounds.squelch(player);
+        }
+
+        @Override
+        public ServerPlayer player() {
+            return player;
+        }
     }
 
     /** 上一次同步出去的状态。 */

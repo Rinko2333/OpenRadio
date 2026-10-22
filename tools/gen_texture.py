@@ -164,8 +164,32 @@ def build_png(rows):
     return png
 
 
+# ---------------------------------------------------------------- 无线手咪
+# 设计上刻意和手持电台拉开距离：手台是"方盒子带屏幕"，手咪是"话筒头 + 手柄"。
+# 玩家不该在快捷栏里把这两个看错 —— 一个能发文本，一个只能说话。
+
+MIC = [
+    "................",
+    "....bbbbbbbb....",
+    "....baaaaaab....",
+    "....bacacacb....",
+    "....baaaaaab....",
+    "....bacacacb....",
+    "....baaaaaab....",
+    "....bbbbbbbb....",
+    ".....bccccb.....",
+    ".....bddddb.....",
+    ".....bdiidb.....",
+    ".....bddddb.....",
+    ".....bddddb.....",
+    ".....bddddb.....",
+    ".....bbbbbb.....",
+    "................",
+]
+
 SPRITES = {
     'handheld_radio': RADIO,
+    'handheld_mic': MIC,
     'battery': BATTERY,
     'antenna_short': ANTENNA_SHORT,
     'antenna_medium': ANTENNA_MEDIUM,
