@@ -65,5 +65,13 @@
   "message.openradio.no_battery": "No battery installed",
   "message.openradio.battery_installed": "Battery installed  ·  %s (%s RF)",
   "message.openradio.battery_removed": "Battery removed",
-  "message.openradio.low_power": "Low power %s  ·  receive only"
+  "message.openradio.low_power": "Low power %s  ·  receive only",
+
+  "block.openradio.fixed_station": "Fixed Station",
+  "block.openradio.solar_power": "Solar Power Unit",
+
+  "message.openradio.station.status": "Fixed station  ·  %s  ·  %s / %s RF  ·  %s",
+  "message.openradio.station.no_power": "No power — connect a supply first",
+  "gui.openradio.on": "online",
+  "gui.openradio.off": "offline"
 }

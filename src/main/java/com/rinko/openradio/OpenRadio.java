@@ -6,10 +6,13 @@ import com.mojang.logging.LogUtils;
 import com.rinko.openradio.energy.ModCapabilities;
 import com.rinko.openradio.network.ModNetwork;
 import com.rinko.openradio.radio.RadioManager;
+import com.rinko.openradio.registry.ModBlockEntities;
+import com.rinko.openradio.registry.ModBlocks;
 import com.rinko.openradio.registry.ModCreativeTabs;
 import com.rinko.openradio.registry.ModDataComponents;
 import com.rinko.openradio.registry.ModItems;
 import com.rinko.openradio.spike.SpikeAutoRunner;
+import com.rinko.openradio.spike.StationProbe;
 import com.rinko.openradio.spike.VoiceSpikeCommand;
 
 import net.neoforged.bus.api.IEventBus;
@@ -38,6 +41,8 @@ public class OpenRadio {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public OpenRadio(IEventBus modBus, ModContainer container) {
+        ModBlocks.register(modBus);
+        ModBlockEntities.register(modBus);
         ModItems.register(modBus);
         ModDataComponents.register(modBus);
         ModCreativeTabs.register(modBus);
@@ -63,6 +68,7 @@ public class OpenRadio {
      * <p><b>验证完成后删掉这个方法即可，不会牵连任何正式代码。</b>
      */
     private static void commonSetup(FMLCommonSetupEvent event) {
+        StationProbe.register();
         if (ModList.get().isLoaded("voicechat")) {
             VoiceSpikeCommand.register();
             SpikeAutoRunner.register();

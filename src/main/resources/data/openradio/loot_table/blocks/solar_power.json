@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:block",
+  "random_sequence": "openradio:blocks/solar_power",
+  "pools": [
+    {
+      "rolls": 1,
+      "bonus_rolls": 0,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "openradio:solar_power"
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ]
+    }
+  ]
+}

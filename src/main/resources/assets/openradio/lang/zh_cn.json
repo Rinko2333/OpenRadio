@@ -65,5 +65,13 @@
   "message.openradio.no_battery": "没有电池，装一块再开机",
   "message.openradio.battery_installed": "电池已装好  ·  剩余 %s（%s RF）",
   "message.openradio.battery_removed": "电池已拆下",
-  "message.openradio.low_power": "电量不足 %s  ·  只能接收，不能发射"
+  "message.openradio.low_power": "电量不足 %s  ·  只能接收，不能发射",
+
+  "block.openradio.fixed_station": "固定电台",
+  "block.openradio.solar_power": "太阳能电源",
+
+  "message.openradio.station.status": "固定电台  ·  %s  ·  %s / %s RF  ·  %s",
+  "message.openradio.station.no_power": "没有电，先接上电源再开机",
+  "gui.openradio.on": "已开机",
+  "gui.openradio.off": "已关机"
 }

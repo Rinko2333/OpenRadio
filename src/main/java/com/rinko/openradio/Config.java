@@ -89,6 +89,23 @@ public final class Config {
     /** 低于该电量比例后只能收不能发。 */
     public static final ModConfigSpec.DoubleValue ENERGY_LOW_THRESHOLD;
 
+    // ---------------------------------------------------------- 固定台
+
+    /** 固定台的内部电容（FE）。 */
+    public static final ModConfigSpec.IntValue STATION_CAPACITY;
+
+    /** 固定台每个面每 tick 最多接受的能量（FE/t）。 */
+    public static final ModConfigSpec.IntValue STATION_MAX_RECEIVE;
+
+    /** 固定台开机待机时每分钟的耗电（FE/min）。 */
+    public static final ModConfigSpec.DoubleValue STATION_IDLE_DRAIN_PER_MINUTE;
+
+    /** 固定台发一条文本的耗电（FE）。 */
+    public static final ModConfigSpec.IntValue STATION_COST_MESSAGE;
+
+    /** 太阳能电源在满日照下每 tick 的发电量（FE/t）。 */
+    public static final ModConfigSpec.IntValue SOLAR_FE_PER_TICK;
+
     // ---------------------------------------------------------- 天线
 
     /** 没有天线时的射程系数。 */
@@ -224,6 +241,34 @@ public final class Config {
         ENERGY_LOW_THRESHOLD = builder
                 .comment("低于该电量比例后只能收不能发。不做变砖 —— 换块电池就能继续用。")
                 .defineInRange("lowThreshold", 0.10D, 0.0D, 1.0D);
+        builder.pop();
+
+        builder.comment("固定台。本身不装电池，靠外部供电（电网 / 太阳能）。",
+                "暴露标准的 NeoForge Energy 能力，所以 Mekanism 通用线缆、热力膨胀的能量管道",
+                "以及任何走 Forge/NeoForge Energy 的设备都能直接接上。",
+                "刻意不兼容只有 RF 私有实现的东西 —— 那是另一套 API，接了等于给每个 mod 写一次适配。")
+                .push("station");
+        STATION_CAPACITY = builder
+                .comment("固定台内部电容（FE）。比手台的电池大一个量级，",
+                        "因为它要撑住整张 SSTV 图的发射，中途掉电会让接收端收到半张图。")
+                .defineInRange("capacity", 400_000, 1_000, 100_000_000);
+        STATION_MAX_RECEIVE = builder
+                .comment("每个面每 tick 最多接受的输入（FE/t）。按面计而不是按设备计，",
+                        "这样多面接管道时总输入能叠加，符合玩家对线缆并联的直觉。")
+                .defineInRange("maxReceivePerSide", 1_000, 1, 1_000_000);
+        STATION_IDLE_DRAIN_PER_MINUTE = builder
+                .comment("开机待机耗电（FE/min）。")
+                .defineInRange("idleDrainPerMinute", 120.0D, 0.0D, 100_000.0D);
+        STATION_COST_MESSAGE = builder
+                .comment("固定台发一条文本的耗电（FE）。比手台高，因为发射功率更大。")
+                .defineInRange("costPerMessage", 200, 0, 1_000_000);
+        builder.pop();
+
+        builder.comment("太阳能电源。放在固定台正上方即可供电，也可以用管道转接。").push("solar");
+        SOLAR_FE_PER_TICK = builder
+                .comment("满日照下每 tick 的发电量（FE/t）。夜晚为 0，下雨按 1/3 计。",
+                        "默认 40 FE/t = 800 FE/s，约 8 分钟把固定台的 40 万 FE 充满。")
+                .defineInRange("fePerTick", 40, 0, 100_000);
         builder.pop();
 
         builder.comment("天线。射程 = 频段射程 × √(发送端系数 × 接收端系数)。").push("antenna");

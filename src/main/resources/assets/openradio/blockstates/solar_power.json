@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "openradio:block/solar_power" }
+  }
+}

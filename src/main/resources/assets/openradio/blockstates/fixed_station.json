@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "openradio:block/fixed_station" },
+    "facing=east": { "model": "openradio:block/fixed_station", "y": 90 },
+    "facing=south": { "model": "openradio:block/fixed_station", "y": 180 },
+    "facing=west": { "model": "openradio:block/fixed_station", "y": 270 }
+  }
+}

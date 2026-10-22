@@ -1,6 +1,7 @@
 package com.rinko.openradio.energy;
 
 import com.rinko.openradio.item.BatteryItem;
+import com.rinko.openradio.registry.ModBlockEntities;
 import com.rinko.openradio.registry.ModItems;
 
 import net.minecraft.world.item.ItemStack;
@@ -28,6 +29,17 @@ public final class ModCapabilities {
         event.registerItem(Capabilities.EnergyStorage.ITEM,
                 (stack, context) -> new RadioStorage(stack),
                 ModItems.HANDHELD_RADIO.get());
+
+        // 固定台：正面（操作面板）返回 null，能力系统据此判定"这一面没有能量接口"，
+        // Mekanism 的通用线缆与其他管道自然不会连上来。用数据表达规则，不靠事件拦截。
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK,
+                ModBlockEntities.FIXED_STATION.get(),
+                (station, side) -> station.storageFor(side));
+
+        // 太阳能：只出不进，任何一面都能接线。
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK,
+                ModBlockEntities.SOLAR_POWER.get(),
+                (solar, side) -> solar.energyStorage());
     }
 
     /** 电池自身：可充可放。 */

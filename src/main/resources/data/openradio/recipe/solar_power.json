@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "GGG",
+    "III",
+    "IRI"
+  ],
+  "key": {
+    "G": { "item": "minecraft:glass" },
+    "I": { "item": "minecraft:iron_ingot" },
+    "R": { "item": "minecraft:redstone" }
+  },
+  "result": {
+    "id": "openradio:solar_power",
+    "count": 1
+  }
+}

@@ -32,6 +32,9 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.ANTENNA_MEDIUM.get());
                         output.accept(ModItems.ANTENNA_LONG.get());
                         output.accept(ModItems.ANTENNA_WIDEBAND.get());
+
+                        output.accept(ModItems.FIXED_STATION.get());
+                        output.accept(ModItems.SOLAR_POWER.get());
                     })
                     .build());
 

@@ -182,3 +182,152 @@ for name, rows in SPRITES.items():
     with open(path, 'wb') as fp:
         fp.write(data)
     print('wrote', path, len(data), 'bytes')
+
+
+# ---------------------------------------------------------------- 方块贴图
+# 方块贴图走独立的调色板扩展：太阳能板需要蓝色系，物品那套里没有。
+
+PAL.update({
+    'j': (28, 56, 110, 255),     # 深蓝：太阳能板底
+    'k': (58, 108, 186, 255),    # 亮蓝：太阳能板
+    'm': (16, 32, 64, 255),      # 网格线
+})
+
+# 正面 = 操作面板：显示屏 + 两个旋钮。FACING 就指向这一面。
+FIXED_STATION_FRONT = [
+    "bbbbbbbbbbbbbbbb",
+    "baaaaaaaaaaaaaab",
+    "baccccccccccccab",
+    "bacbbbbbbbbbbcab",
+    "bacbddddddddbcab",
+    "bacbddeeddddbcab",
+    "bacbddddddddbcab",
+    "bacbddddddddbcab",
+    "bacbbbbbbbbbbcab",
+    "baccccccccccccab",
+    "bacchhcccchhccab",
+    "bacchhcccchhccab",
+    "baccccccccccccab",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "bbbbbbbbbbbbbbbb",
+]
+
+FIXED_STATION_SIDE = [
+    "bbbbbbbbbbbbbbbb",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "baahhaahhaahhaab",
+    "baahhaahhaahhaab",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "baahhaahhaahhaab",
+    "baahhaahhaahhaab",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "bbbbbbbbbbbbbbbb",
+]
+
+FIXED_STATION_TOP = [
+    "bbbbbbbbbbbbbbbb",
+    "beeaaaaaaaaaaaeb",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "baaaaahhaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "baaahhhhhhhhaaab",
+    "baaahhhhhhhhaaab",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "baaaaahhaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "beeaaaaaaaaaaaeb",
+    "bbbbbbbbbbbbbbbb",
+]
+
+SOLAR_TOP = [
+    "bbbbbbbbbbbbbbbb",
+    "bkkkkkkkkkkkkkkb",
+    "bkkkkkkkkkkkkkkb",
+    "bkkkkkkkkkkkkkkb",
+    "bkkkkkkkkkkkkkkb",
+    "bkmmmmmmmmmmmmkb",
+    "bkkkkkkkkkkkkkkb",
+    "bkkkkkkkkkkkkkkb",
+    "bkkkkkkkkkkkkkkb",
+    "bkkkkkkkkkkkkkkb",
+    "bkmmmmmmmmmmmmkb",
+    "bkkkkkkkkkkkkkkb",
+    "bkkkkkkkkkkkkkkb",
+    "bkkkkkkkkkkkkkkb",
+    "bkkkkkkkkkkkkkkb",
+    "bbbbbbbbbbbbbbbb",
+]
+
+SOLAR_SIDE = [
+    "bbbbbbbbbbbbbbbb",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "baakkkkkkkkkkaab",
+    "baakkkkkkkkkkaab",
+    "baakkkkkkkkkkaab",
+    "baakkkkkkkkkkaab",
+    "baakkkkkkkkkkaab",
+    "baakkkkkkkkkkaab",
+    "baakkkkkkkkkkaab",
+    "baakkkkkkkkkkaab",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "bbbbbbbbbbbbbbbb",
+]
+
+SOLAR_BOTTOM = [
+    "bbbbbbbbbbbbbbbb",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "baaahhhhhhhhaaab",
+    "baaahhhhhhhhaaab",
+    "baaahhhhhhhhaaab",
+    "baaahhhhhhhhaaab",
+    "baaahhhhhhhhaaab",
+    "baaahhhhhhhhaaab",
+    "baaahhhhhhhhaaab",
+    "baaahhhhhhhhaaab",
+    "baaahhhhhhhhaaab",
+    "baaaaaaaaaaaaaab",
+    "baaaaaaaaaaaaaab",
+    "bbbbbbbbbbbbbbbb",
+]
+
+BLOCK_SPRITES = {
+    'fixed_station_front': FIXED_STATION_FRONT,
+    'fixed_station_side': FIXED_STATION_SIDE,
+    'fixed_station_top': FIXED_STATION_TOP,
+    'solar_power_top': SOLAR_TOP,
+    'solar_power_side': SOLAR_SIDE,
+    'solar_power_bottom': SOLAR_BOTTOM,
+}
+
+block_dir = 'src/main/resources/assets/openradio/textures/block'
+os.makedirs(block_dir, exist_ok=True)
+
+for name, rows in BLOCK_SPRITES.items():
+    # 尺寸写错会让贴图整体错位，而且是运行期才看出来，所以在生成时就拦下。
+    assert len(rows) == 16, f'{name}: 需要 16 行，实际 {len(rows)}'
+    for index, row in enumerate(rows):
+        assert len(row) == 16, f'{name}: 第 {index} 行长度 {len(row)}，需要 16'
+        assert all(ch in PAL for ch in row), f'{name}: 第 {index} 行有未定义的颜色字符'
+    path = os.path.join(block_dir, f'{name}.png')
+    data = build_png(rows)
+    with open(path, 'wb') as fp:
+        fp.write(data)
+    print('wrote', path, len(data), 'bytes')
