@@ -3,3 +3,10 @@
 # are changed when only line endings change.
 src/generated/**/.cache/* text eol=lf
 src/generated/**/*.json text eol=lf
+
+# CI 在 Linux 上跑。这两个脚本必须是 LF 且可执行 ——
+# 在 Windows 上提交时很容易带上 CRLF 或者丢掉可执行位，
+# 两种都会让 CI 死于 "Permission denied" 或 "/usr/bin/env: sh\r"，
+# 而报错看起来和代码毫无关系。
+gradlew text eol=lf
+*.sh text eol=lf

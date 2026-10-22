@@ -27,6 +27,9 @@ sourceSets.main.resources {
 }
 
 repositories {
+    // 显式声明 mavenCentral：本地有缓存时缺了它也能构建，但 CI 是冷环境，
+    // 缺一个仓库就会在拉到一半时失败。不能靠"本地能过"来判断。
+    mavenCentral()
     // Simple Voice Chat 的官方 maven，只发布了 API，没有本体
     maven {
         name = 'henkelmax'
