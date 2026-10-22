@@ -4,7 +4,10 @@ import javax.annotation.Nullable;
 
 import com.mojang.serialization.MapCodec;
 import com.rinko.openradio.Config;
+import com.rinko.openradio.radio.AntennaProfile;
+import com.rinko.openradio.radio.FeederNetwork;
 import com.rinko.openradio.radio.RadioConstants;
+import com.rinko.openradio.block.antenna.AntennaBaseBlockEntity;
 import com.rinko.openradio.registry.ModBlockEntities;
 
 import net.minecraft.core.BlockPos;
@@ -12,6 +15,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.energy.IEnergyStorage;
@@ -48,6 +52,12 @@ public class FixedStationBlockEntity extends BlockEntity {
 
     /** 待机耗电的小数余额。按 tick 扣 0.x FE 时，直接取整会永远是 0。 */
     private double idleResidual;
+
+    /** 天线查找结果缓存。馈线网络的 BFS 不该每 tick 跑一次。 */
+    @Nullable
+    private AntennaProfile antennaCache;
+    private long antennaCachedAt = Long.MIN_VALUE;
+    private static final int ANTENNA_REFRESH_TICKS = 20;
 
     /** 按面缓存，避免每次能力查询都新建对象 —— 管道是每 tick 查的。 */
     private final IEnergyStorage[] sidedStorage = new IEnergyStorage[6];
@@ -152,6 +162,34 @@ public class FixedStationBlockEntity extends BlockEntity {
         }
     }
 
+    // ------------------------------------------------------------ 天线
+
+    /**
+     * 这台电台接到的天线。
+     *
+     * <p>沿馈线走一遍找基座，结果缓存 1 秒。客户端不跑 BFS —— 它没有完整的区块数据，
+     * 而且界面显示会走服务端同步过来的值。
+     */
+    public AntennaProfile antenna() {
+        Level level = getLevel();
+        if (level == null || level.isClientSide) {
+            return AntennaProfile.EMPTY;
+        }
+        long now = level.getGameTime();
+        if (antennaCache == null || now - antennaCachedAt >= ANTENNA_REFRESH_TICKS) {
+            AntennaBaseBlockEntity base = FeederNetwork.findAntenna(level, worldPosition);
+            antennaCache = base == null ? AntennaProfile.EMPTY : base.profile();
+            antennaCachedAt = now;
+        }
+        return antennaCache;
+    }
+
+    /** 旁边方块变了（比如接了/拆了馈线），下一次查询必须重新走网络。 */
+    public void invalidateAntenna() {
+        antennaCache = null;
+        antennaCachedAt = Long.MIN_VALUE;
+    }
+
     // ------------------------------------------------------------ 状态
 
     public int getFrequency() {
@@ -178,11 +216,18 @@ public class FixedStationBlockEntity extends BlockEntity {
 
     /** 给右键交互用的简短状态描述。GUI 做好之前先这样反馈。 */
     public Component describe() {
+        AntennaProfile antenna = antenna();
+        Component antennaText = antenna.present()
+                ? Component.translatable("message.openradio.station.antenna",
+                        Component.translatable(antenna.element().translationKey()), antenna.height())
+                : Component.translatable("message.openradio.station.no_antenna");
+
         return Component.translatable("message.openradio.station.status",
                 String.format("%05d", frequency),
                 String.format("%,d", energy),
                 String.format("%,d", getCapacity()),
-                Component.translatable(powered ? "gui.openradio.on" : "gui.openradio.off"));
+                Component.translatable(powered ? "gui.openradio.on" : "gui.openradio.off"),
+                antennaText);
     }
 
     // ------------------------------------------------------------ 持久化

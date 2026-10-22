@@ -69,8 +69,17 @@
 
   "block.openradio.fixed_station": "固定电台",
   "block.openradio.solar_power": "太阳能电源",
+  "block.openradio.antenna_base": "天线基座",
+  "block.openradio.antenna_mast": "天线延长杆",
+  "block.openradio.antenna_element_short": "短波振子",
+  "block.openradio.antenna_element_medium": "中波振子",
+  "block.openradio.antenna_element_long": "长波振子",
+  "block.openradio.antenna_element_wideband": "宽带振子",
+  "block.openradio.feeder_cable": "馈线",
 
-  "message.openradio.station.status": "固定电台  ·  %s  ·  %s / %s RF  ·  %s",
+  "message.openradio.station.status": "固定电台  ·  %s  ·  %s / %s RF  ·  %s  ·  %s",
+  "message.openradio.station.antenna": "%s  ·  %s 格",
+  "message.openradio.station.no_antenna": "没有接天线",
   "message.openradio.station.no_power": "没有电，先接上电源再开机",
   "gui.openradio.on": "已开机",
   "gui.openradio.off": "已关机"

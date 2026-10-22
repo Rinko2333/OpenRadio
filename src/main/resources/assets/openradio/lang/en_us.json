@@ -69,8 +69,17 @@
 
   "block.openradio.fixed_station": "Fixed Station",
   "block.openradio.solar_power": "Solar Power Unit",
+  "block.openradio.antenna_base": "Antenna Base",
+  "block.openradio.antenna_mast": "Antenna Mast",
+  "block.openradio.antenna_element_short": "Shortwave Element",
+  "block.openradio.antenna_element_medium": "Mediumwave Element",
+  "block.openradio.antenna_element_long": "Longwave Element",
+  "block.openradio.antenna_element_wideband": "Wideband Element",
+  "block.openradio.feeder_cable": "Feeder Cable",
 
-  "message.openradio.station.status": "Fixed station  ·  %s  ·  %s / %s RF  ·  %s",
+  "message.openradio.station.status": "Fixed station  ·  %s  ·  %s / %s RF  ·  %s  ·  %s",
+  "message.openradio.station.antenna": "%s  ·  %s blocks",
+  "message.openradio.station.no_antenna": "no antenna connected",
   "message.openradio.station.no_power": "No power — connect a supply first",
   "gui.openradio.on": "online",
   "gui.openradio.off": "offline"

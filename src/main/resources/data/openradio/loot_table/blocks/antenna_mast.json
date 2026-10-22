@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:block",
+  "random_sequence": "openradio:blocks/antenna_mast",
+  "pools": [
+    {
+      "rolls": 1,
+      "bonus_rolls": 0,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "openradio:antenna_mast"
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ]
+    }
+  ]
+}

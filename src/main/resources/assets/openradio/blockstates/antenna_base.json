@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "openradio:block/antenna_base"
+    }
+  }
+}

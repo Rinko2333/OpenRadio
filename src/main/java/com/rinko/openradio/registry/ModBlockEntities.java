@@ -3,6 +3,7 @@ package com.rinko.openradio.registry;
 import com.rinko.openradio.OpenRadio;
 import com.rinko.openradio.block.FixedStationBlockEntity;
 import com.rinko.openradio.block.SolarPowerBlockEntity;
+import com.rinko.openradio.block.antenna.AntennaBaseBlockEntity;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -28,6 +29,11 @@ public final class ModBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SolarPowerBlockEntity>> SOLAR_POWER =
             BLOCK_ENTITIES.register("solar_power", () -> BlockEntityType.Builder
                     .of(SolarPowerBlockEntity::new, ModBlocks.SOLAR_POWER.get())
+                    .build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AntennaBaseBlockEntity>> ANTENNA_BASE =
+            BLOCK_ENTITIES.register("antenna_base", () -> BlockEntityType.Builder
+                    .of(AntennaBaseBlockEntity::new, ModBlocks.ANTENNA_BASE.get())
                     .build(null));
 
     public static void register(IEventBus modBus) {

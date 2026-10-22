@@ -110,4 +110,14 @@ public class FixedStationBlock extends BaseEntityBlock {
         player.displayClientMessage(station.describe(), true);
         return InteractionResult.CONSUME;
     }
+
+    /** 旁边接了/拆了馈线，天线缓存必须失效，否则要等下一次定时重扫。 */
+    @Override
+    protected void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock,
+                                   BlockPos neighborPos, boolean movedByPiston) {
+        super.neighborChanged(state, level, pos, neighborBlock, neighborPos, movedByPiston);
+        if (!level.isClientSide && level.getBlockEntity(pos) instanceof FixedStationBlockEntity station) {
+            station.invalidateAntenna();
+        }
+    }
 }

@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:block",
+  "random_sequence": "openradio:blocks/antenna_element_wideband",
+  "pools": [
+    {
+      "rolls": 1,
+      "bonus_rolls": 0,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "openradio:antenna_element_wideband"
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ]
+    }
+  ]
+}

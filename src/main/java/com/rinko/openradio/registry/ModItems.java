@@ -48,6 +48,23 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> SOLAR_POWER =
             ITEMS.registerSimpleBlockItem(ModBlocks.SOLAR_POWER);
 
+    // 多方块天线部件。注意别和上面手持用的天线物品搞混：
+    // ANTENNA_SHORT 是"拿在副手上的天线"，ANTENNA_ELEMENT_SHORT 是"架在基座上的振子"。
+    public static final DeferredItem<BlockItem> ANTENNA_BASE =
+            ITEMS.registerSimpleBlockItem(ModBlocks.ANTENNA_BASE);
+    public static final DeferredItem<BlockItem> ANTENNA_MAST =
+            ITEMS.registerSimpleBlockItem(ModBlocks.ANTENNA_MAST);
+    public static final DeferredItem<BlockItem> ANTENNA_ELEMENT_SHORT =
+            ITEMS.registerSimpleBlockItem(ModBlocks.ANTENNA_ELEMENT_SHORT);
+    public static final DeferredItem<BlockItem> ANTENNA_ELEMENT_MEDIUM =
+            ITEMS.registerSimpleBlockItem(ModBlocks.ANTENNA_ELEMENT_MEDIUM);
+    public static final DeferredItem<BlockItem> ANTENNA_ELEMENT_LONG =
+            ITEMS.registerSimpleBlockItem(ModBlocks.ANTENNA_ELEMENT_LONG);
+    public static final DeferredItem<BlockItem> ANTENNA_ELEMENT_WIDEBAND =
+            ITEMS.registerSimpleBlockItem(ModBlocks.ANTENNA_ELEMENT_WIDEBAND);
+    public static final DeferredItem<BlockItem> FEEDER_CABLE =
+            ITEMS.registerSimpleBlockItem(ModBlocks.FEEDER_CABLE);
+
     public static void register(IEventBus modBus) {
         ITEMS.register(modBus);
     }

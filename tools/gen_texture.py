@@ -331,3 +331,45 @@ for name, rows in BLOCK_SPRITES.items():
     with open(path, 'wb') as fp:
         fp.write(data)
     print('wrote', path, len(data), 'bytes')
+
+
+# ---------------------------------------------------------------- 天线与馈线
+# 这些贴图会被拉伸到细杆上（4px 宽的柱），所以刻意做成横向条纹而不是图案 ——
+# 有条理的图案拉伸之后会变成难看的糊块，细条纹拉伸后反而像金属拉丝。
+
+PAL.update({
+    'n': (214, 186, 60, 255),    # 黄：中波振子
+    'o': (146, 122, 30, 255),    # 暗黄
+    'p': (198, 92, 56, 255),     # 橙红：长波振子
+    'q': (120, 52, 32, 255),     # 暗橙红
+    'r': (200, 200, 210, 255),   # 银白：宽带振子
+    's': (120, 120, 130, 255),   # 暗银
+})
+
+
+def stripes(light, dark, step=3):
+    rows = []
+    for y in range(16):
+        rows.append((light if (y // step) % 2 == 0 else dark) * 16)
+    return rows
+
+
+ANTENNA_SPRITES = {
+    'antenna_metal': stripes('a', 'c', 3),
+    'antenna_element_short': stripes('d', 'f', 4),
+    'antenna_element_medium': stripes('n', 'o', 4),
+    'antenna_element_long': stripes('p', 'q', 4),
+    'antenna_element_wideband': stripes('r', 's', 4),
+    'feeder_cable': stripes('i', 'h', 2),
+}
+
+for name, rows in ANTENNA_SPRITES.items():
+    assert len(rows) == 16, f'{name}: 需要 16 行，实际 {len(rows)}'
+    for index, row in enumerate(rows):
+        assert len(row) == 16, f'{name}: 第 {index} 行长度 {len(row)}'
+        assert all(ch in PAL for ch in row), f'{name}: 第 {index} 行有未定义颜色'
+    path = os.path.join(block_dir, f'{name}.png')
+    data = build_png(rows)
+    with open(path, 'wb') as fp:
+        fp.write(data)
+    print('wrote', path, len(data), 'bytes')

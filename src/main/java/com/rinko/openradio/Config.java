@@ -120,6 +120,15 @@ public final class Config {
     /** 宽带天线的射程系数（任何波段都一样）。 */
     public static final ModConfigSpec.DoubleValue ANTENNA_GAIN_WIDEBAND;
 
+    /** 多方块天线：每格延长杆带来的额外增益。 */
+    public static final ModConfigSpec.DoubleValue ANTENNA_MAST_GAIN_PER_BLOCK;
+
+    /** 多方块天线：延长杆的高度上限。 */
+    public static final ModConfigSpec.IntValue ANTENNA_MAX_MAST_BLOCKS;
+
+    /** 馈线网络最多搜索多少个方块。 */
+    public static final ModConfigSpec.IntValue ANTENNA_FEEDER_MAX_BLOCKS;
+
     // ---------------------------------------------------------- 语音
 
     /** 语音功能总开关。关闭后本 mod 完全不干预 Simple Voice Chat。 */
@@ -285,6 +294,18 @@ public final class Config {
         ANTENNA_GAIN_WIDEBAND = builder
                 .comment("宽带天线的射程系数，任何波段都一样。它是不想挑波段时的折衷。")
                 .defineInRange("widebandGain", 1.20D, 0.05D, 4.0D);
+        ANTENNA_MAST_GAIN_PER_BLOCK = builder
+                .comment("多方块天线每多一格延长杆的额外增益。默认 0.04 = 每格 +4%。",
+                        "高度是真实无线电里最有效的增益手段，所以这一项刻意做得划算：",
+                        "16 格杆 = +64%，但玩家要在露天搭一根天线，风险也是实打实的。")
+                .defineInRange("mastGainPerBlock", 0.04D, 0.0D, 0.5D);
+        ANTENNA_MAX_MAST_BLOCKS = builder
+                .comment("延长杆的高度上限（含振子）。超过部分不再增加增益。")
+                .defineInRange("maxMastBlocks", 16, 1, 64);
+        ANTENNA_FEEDER_MAX_BLOCKS = builder
+                .comment("馈线网络从电台出发最多搜索多少个方块。",
+                        "限制它是为了防止玩家铺几千格线缆制造服务器负担 —— 超过就当没接上。")
+                .defineInRange("feederMaxBlocks", 256, 8, 4096);
         builder.pop();
 
         builder.comment("语音（Simple Voice Chat 集成）").push("voice");        VOICE_ENABLED = builder
