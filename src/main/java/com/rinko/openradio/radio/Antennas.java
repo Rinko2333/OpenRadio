@@ -45,9 +45,13 @@ public final class Antennas {
      * <p>用几何平均（√(a×b)）而不是直接相乘：直接乘的话两端各装 1.6 倍天线会得到 2.56 倍，
      * 射程一下就翻倍不止，数值会失控。几何平均在两端同构时正好等于单端增益，
      * 而且保留了"两端都升级才有满额收益"的直觉。
+     *
+     * <p>参数是<b>已经算好的增益数值</b>而不是 {@link AntennaKind}：固定台的天线是多方块结构，
+     * 增益取决于振子和高度，一个枚举装不下。让调用方各自算好自己的增益，
+     * 这里只负责合成 —— 玩家和固定台走同一条公式，不会出现两套算法慢慢漂移。
      */
-    public static double linkGain(AntennaKind sender, AntennaKind receiver, RadioBand band) {
-        return Math.sqrt(sender.gainFor(band) * receiver.gainFor(band));
+    public static double linkGain(double senderGain, double receiverGain) {
+        return Math.sqrt(senderGain * receiverGain);
     }
 
     private Antennas() {

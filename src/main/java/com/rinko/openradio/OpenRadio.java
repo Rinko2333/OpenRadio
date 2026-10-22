@@ -12,6 +12,7 @@ import com.rinko.openradio.registry.ModCreativeTabs;
 import com.rinko.openradio.registry.ModDataComponents;
 import com.rinko.openradio.registry.ModItems;
 import com.rinko.openradio.spike.AntennaProbe;
+import com.rinko.openradio.spike.LinkProbe;
 import com.rinko.openradio.spike.SpikeAutoRunner;
 import com.rinko.openradio.spike.StationProbe;
 import com.rinko.openradio.spike.VoiceSpikeCommand;
@@ -71,6 +72,7 @@ public class OpenRadio {
     private static void commonSetup(FMLCommonSetupEvent event) {
         StationProbe.register();
         AntennaProbe.register();
+        LinkProbe.register();
         if (ModList.get().isLoaded("voicechat")) {
             VoiceSpikeCommand.register();
             SpikeAutoRunner.register();

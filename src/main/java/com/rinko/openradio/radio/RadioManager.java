@@ -9,7 +9,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import javax.annotation.Nullable;
+
 import com.rinko.openradio.Config;
+import com.rinko.openradio.block.FixedStationBlockEntity;
 import com.rinko.openradio.energy.RadioEnergy;
 import com.rinko.openradio.energy.VoicePowerLedger;
 import com.rinko.openradio.item.HandheldRadioItem;
@@ -23,6 +26,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -31,12 +35,15 @@ import net.neoforged.neoforge.network.PacketDistributor;
  *
  * <p>设计要点：
  * <ul>
- *   <li><b>不持有设备注册表</b>。每次重算时现扫在线玩家手里有没有能用的电台，
- *       设备状态永远来自 ItemStack 本身。玩家下线、丢物品、换手、拆电池，全都自动正确。</li>
- *   <li><b>Q 是成对且定向的</b>。{@code LINK_QUALITY} 里存的是
- *       {@code (发射者 → 接收者) → Q}，不是"信道质量"。玩家看到的是一个汇总值
- *       （最好那条链路 + 能听到几个台），但每条链路本身是独立算出来的。</li>
- *   <li><b>按时间预算切片</b>。N 个电台有 N² 条链路，一次算完会卡 tick，
+ *   <li><b>不持有持久化的设备注册表</b>。玩家电台每次重算时现扫手上的物品；
+ *       固定台走 {@link FixedStationIndex}，而那个索引完全由"哪些区块是加载的"决定，
+ *       不落盘、不会腐坏。设备状态永远来自设备自己
+ *       （ItemStack 的组件 / BlockEntity 的字段）。</li>
+ *   <li><b>端点（{@link RadioEndpoint}）是统一抽象</b>。玩家和固定台在这里没有区别：
+ *       都能算增益、都能被通到。差别只在"怎么把消息交出去"和"要不要推 HUD"。</li>
+ *   <li><b>Q 是成对且定向的</b>。{@code LINK_QUALITY} 存的是
+ *       {@code (发射者 → 接收者) → Q}，不是"信道质量"。</li>
+ *   <li><b>按时间预算切片</b>。N 个设备有 N² 条链路，一次算完会卡 tick，
  *       所以每 tick 只用一点预算、下次从断点继续。</li>
  *   <li><b>投递通道可替换</b>。现在注入的是 {@link ChatMessageSink}，
  *       接语音时换成音频实现，上面整条链路不动。</li>
@@ -131,20 +138,25 @@ public final class RadioManager {
     private static void processLevel(ServerLevel level, long deadline, Map<UUID, Float> radii,
                                      Map<UUID, Map<UUID, Float>> routes, Set<UUID> blocked,
                                      int intervalTicks) {
-        List<Endpoint> endpoints = collectEndpoints(level);
+        List<RadioEndpoint> endpoints = collectEndpoints(level);
 
         // 广播半径按"频段射程 × 自己的天线增益"算：长波能覆盖 2048 格，就必须让 SVC
         // 把包发那么远，否则远处的人根本收不到音频，我们连"劣化"的机会都没有。
+        // 只有玩家端点需要 —— 固定台不参与 SVC 语音。
         double multiplier = Config.RANGE_MULTIPLIER.get();
         float cap = Config.VOICE_MAX_RADIUS.get();
-        for (Endpoint endpoint : endpoints) {
+        for (RadioEndpoint endpoint : endpoints) {
+            ServerPlayer player = endpoint.player();
+            if (player == null) {
+                continue;
+            }
             RadioBand band = RadioBands.of(endpoint.frequency());
-            double range = band.maxRange() * multiplier * endpoint.antenna().gainFor(band);
-            radii.merge(endpoint.player().getUUID(), (float) Math.min(range, cap), Math::max);
+            double range = band.maxRange() * multiplier * endpoint.gainFor(band);
+            radii.merge(player.getUUID(), (float) Math.min(range, cap), Math::max);
 
             drainIdle(endpoint, intervalTicks);
-            if (!RadioEnergy.canTransmit(endpoint.radio())) {
-                blocked.add(endpoint.player().getUUID());
+            if (!endpoint.canTransmit()) {
+                blocked.add(player.getUUID());
             }
         }
 
@@ -157,36 +169,46 @@ public final class RadioManager {
      *
      * <p>默认每分钟 60 FE，摊到 10 tick 一个周期是 0.5 FE —— 取整会永远是 0，
      * 所以必须攒小数余额。这也是为什么不能简单地在每个周期扣 1。
+     *
+     * <p>只处理玩家。固定台的待机耗电在自己的方块实体 tick 里结算，
+     * 因为那里本来就要跑，没必要绕一圈。
      */
-    private static void drainIdle(Endpoint endpoint, int intervalTicks) {
+    private static void drainIdle(RadioEndpoint endpoint, int intervalTicks) {
         double perMinute = Config.ENERGY_IDLE_DRAIN_PER_MINUTE.get();
         if (perMinute <= 0.0D) {
             return;
         }
+        ServerPlayer player = endpoint.player();
+        if (player == null) {
+            return;
+        }
         double perCycle = perMinute / 1200.0D * intervalTicks;
-        UUID id = endpoint.player().getUUID();
-        double balance = IDLE_RESIDUAL.merge(id, perCycle, Double::sum);
+        double balance = IDLE_RESIDUAL.merge(player.getUUID(), perCycle, Double::sum);
         int whole = (int) balance;
         if (whole <= 0) {
             return;
         }
-        IDLE_RESIDUAL.put(id, balance - whole);
-        RadioEnergy.drain(endpoint.radio(), whole);
+        IDLE_RESIDUAL.put(player.getUUID(), balance - whole);
+        endpoint.drain(whole);
     }
 
     /**
-     * 扫描当前维度里所有能用的电台。不缓存 —— 现扫永远比维护缓存更不容易出 bug。
+     * 扫描当前维度里所有能用的电台：玩家的手持机 + 已加载的固定台。
      *
-     * <p>注意 {@link Endpoint#radio()} 是<b>本 tick 的活引用</b>，不能跨 tick 保存：
-     * 服务端同步会整个替换槽位里的 ItemStack，跨 tick 持有就会读到上一帧的对象。
+     * <p>不缓存玩家侧 —— 现扫永远比维护缓存更不容易出 bug。固定台侧靠索引，
+     * 而索引本身只反映"现在加载着哪些"，同样不需要维护一致性。
      */
-    private static List<Endpoint> collectEndpoints(ServerLevel level) {
-        List<Endpoint> endpoints = new ArrayList<>();
+    private static List<RadioEndpoint> collectEndpoints(ServerLevel level) {
+        List<RadioEndpoint> endpoints = new ArrayList<>();
         for (ServerPlayer player : level.players()) {
             ItemStack stack = HandheldRadioItem.findPoweredRadio(player);
             if (!stack.isEmpty()) {
-                endpoints.add(new Endpoint(player, HandheldRadioItem.getFrequency(stack),
-                        Antennas.resolve(player), stack));
+                endpoints.add(new PlayerEndpoint(player, stack, Antennas.resolve(player)));
+            }
+        }
+        for (FixedStationBlockEntity station : FixedStationIndex.in(level)) {
+            if (station.isPowered() && !station.isRemoved()) {
+                endpoints.add(new StationEndpoint(station));
             }
         }
         return endpoints;
@@ -199,7 +221,7 @@ public final class RadioManager {
      * 中途返回时未算到的链路保留上一轮的值 —— 传播间隔本来就是 10 tick，
      * 一条链路的数据稍微旧一点无关紧要，但绝不能为此卡住主线程。
      */
-    private static void computeLinks(ServerLevel level, List<Endpoint> endpoints, long deadline) {
+    private static void computeLinks(ServerLevel level, List<RadioEndpoint> endpoints, long deadline) {
         int count = endpoints.size();
         int total = count * count;
         if (total != pairTotal) {
@@ -227,17 +249,17 @@ public final class RadioManager {
                 continue;
             }
 
-            Endpoint from = endpoints.get(fromIndex);
-            Endpoint to = endpoints.get(toIndex);
+            RadioEndpoint from = endpoints.get(fromIndex);
+            RadioEndpoint to = endpoints.get(toIndex);
             if (from.frequency() != to.frequency()) {
                 continue;
             }
 
             RadioBand band = RadioBands.of(from.frequency());
-            double gain = Antennas.linkGain(from.antenna(), to.antenna(), band);
+            double gain = Antennas.linkGain(from.gainFor(band), to.gainFor(band));
             double quality = SignalPropagation.compute(level,
-                    from.player().position(), to.player().position(), band, maxSteps, gain);
-            LINK_QUALITY.put(new LinkKey(from.player().getUUID(), to.player().getUUID()), quality);
+                    from.position(), to.position(), band, maxSteps, gain);
+            LINK_QUALITY.put(new LinkKey(from.id(), to.id()), quality);
         }
     }
 
@@ -247,58 +269,74 @@ public final class RadioManager {
      * <p>汇总方式是"最好那条链路 + 能听到几个台"。之所以不给一个平均 Q：
      * 平均值在 3 人以上会骗人（一个近的 + 两个远的，平均下来像是中等质量，
      * 但远处那两个人你根本听不清）。分开显示才诚实。
+     *
+     * <p>"听到几个台"包含固定台，但逐说话人链路只列玩家 —— 因为那张表是给语音用的，
+     * 固定台不会说话。这是两个不同的量，不该为了省一个字段而混在一起。
      */
-    private static void updateClientStates(ServerLevel level, List<Endpoint> endpoints,
+    private static void updateClientStates(ServerLevel level, List<RadioEndpoint> endpoints,
                                            Map<UUID, Map<UUID, Float>> routes) {
         Set<UUID> handled = new HashSet<>();
 
-        for (Endpoint self : endpoints) {
+        for (RadioEndpoint self : endpoints) {
+            ServerPlayer player = self.player();
+            if (player == null) {
+                continue;
+            }
+
             List<S2CRadioState.SpeakerLink> links = new ArrayList<>();
             double best = 0.0D;
-            for (Endpoint other : endpoints) {
-                if (other == self || other.frequency() != self.frequency()) {
+            int heard = 0;
+            for (RadioEndpoint other : endpoints) {
+                if (other.id().equals(self.id()) || other.frequency() != self.frequency()) {
                     continue;
                 }
-                Double quality = LINK_QUALITY.get(new LinkKey(
-                        other.player().getUUID(), self.player().getUUID()));
+                Double quality = LINK_QUALITY.get(new LinkKey(other.id(), self.id()));
                 if (quality == null || quality <= 0.0D) {
                     continue;
                 }
-                links.add(new S2CRadioState.SpeakerLink(
-                        other.player().getUUID(), quality.floatValue()));
+                heard++;
+                best = Math.max(best, quality);
+
+                ServerPlayer speaker = other.player();
+                if (speaker == null) {
+                    continue;
+                }
+                links.add(new S2CRadioState.SpeakerLink(speaker.getUUID(), quality.floatValue()));
                 // 顺手把这张表反过来记一份：说话者 → 该转发给谁。
                 // 语音包到达时跑在 SVC 线程上，没有机会遍历世界，只能查这张现成的表。
-                routes.computeIfAbsent(other.player().getUUID(), key -> new HashMap<>())
-                        .put(self.player().getUUID(), quality.floatValue());
-                best = Math.max(best, quality);
+                routes.computeIfAbsent(speaker.getUUID(), key -> new HashMap<>())
+                        .put(player.getUUID(), quality.floatValue());
             }
             links.sort(Comparator.comparingDouble(S2CRadioState.SpeakerLink::quality).reversed());
 
-            handled.add(self.player().getUUID());
+            handled.add(self.id());
             warnLowPower(self);
-            pushState(self.player(), best, true, links);
+            pushState(player, best, heard, true, links);
         }
 
         // 关机 / 没拿电台 / 刚下线的玩家：推一个静默状态，让客户端把读数清掉。
         for (ServerPlayer player : level.players()) {
             if (!handled.contains(player.getUUID())) {
                 LOW_POWER_WARNED.remove(player.getUUID());
-                pushState(player, 0.0D, false, List.of());
+                pushState(player, 0.0D, 0, false, List.of());
             }
         }
     }
 
     /** 电量刚跌破阈值时提示一次。跨回去再跌破会重新提示。 */
-    private static void warnLowPower(Endpoint self) {
-        UUID id = self.player().getUUID();
-        boolean low = !RadioEnergy.canTransmit(self.radio());
-        if (!low) {
+    private static void warnLowPower(RadioEndpoint self) {
+        ServerPlayer player = self.player();
+        if (player == null) {
+            return;
+        }
+        UUID id = player.getUUID();
+        if (self.canTransmit()) {
             LOW_POWER_WARNED.remove(id);
             return;
         }
         if (LOW_POWER_WARNED.add(id)) {
-            self.player().displayClientMessage(Component.translatable("message.openradio.low_power",
-                    String.format("%.0f%%", RadioEnergy.ratio(self.radio()) * 100.0F))
+            player.displayClientMessage(Component.translatable("message.openradio.low_power",
+                    String.format("%.0f%%", self.energyRatio() * 100.0F))
                     .withStyle(ChatFormatting.YELLOW), true);
         }
     }
@@ -309,22 +347,23 @@ public final class RadioManager {
      * <p>逐说话人链路也要参与变化判定 —— 否则"人没变、但我和某个人之间的地形变了"
      * 这种情况不会触发同步，语音端就会一直用旧的 Q 去处理音频。
      */
-    private static void pushState(ServerPlayer player, double quality, boolean active,
+    private static void pushState(ServerPlayer player, double quality, int heard, boolean active,
                                   List<S2CRadioState.SpeakerLink> links) {
         SentState previous = LAST_SENT.get(player.getUUID());
         double threshold = Config.Q_SYNC_THRESHOLD.get();
 
         boolean changed = previous == null
                 || previous.active() != active
+                || previous.heard() != heard
                 || Math.abs(previous.quality() - quality) > threshold
                 || linksChanged(previous.links(), links, threshold);
 
         if (!changed) {
             return;
         }
-        LAST_SENT.put(player.getUUID(), new SentState(quality, active, links));
+        LAST_SENT.put(player.getUUID(), new SentState(quality, heard, active, links));
         PacketDistributor.sendToPlayer(player,
-                new S2CRadioState((float) quality, links.size(), active, links));
+                new S2CRadioState((float) quality, heard, active, links));
     }
 
     private static boolean linksChanged(List<S2CRadioState.SpeakerLink> previous,
@@ -348,6 +387,9 @@ public final class RadioManager {
 
     /**
      * 处理一次发射请求。所有校验都在这里做，客户端说的任何东西都不可信。
+     *
+     * <p>接收方同时包含玩家和固定台 —— 固定台虽然不是人，但它确实是一台能收的设备，
+     * 而且它的天线增益在链路里是实实在在生效的。
      */
     public static void transmit(ServerPlayer sender, String rawText) {
         long now = sender.server.getTickCount();
@@ -393,24 +435,19 @@ public final class RadioManager {
 
         int frequency = HandheldRadioItem.getFrequency(stack);
         RadioBand band = RadioBands.of(frequency);
-        AntennaKind senderAntenna = Antennas.resolve(sender);
+        double senderGain = Antennas.resolve(sender).gainFor(band);
         int maxSteps = Config.MAX_RAY_STEPS.get();
         int maxReceivers = Config.MAX_RECEIVERS_PER_CHANNEL.get();
         ServerLevel level = sender.serverLevel();
         int delivered = 0;
 
-        for (ServerPlayer receiver : level.players()) {
-            if (receiver == sender) {
-                continue;
-            }
-            ItemStack receiverStack = HandheldRadioItem.findPoweredRadio(receiver);
-            if (receiverStack.isEmpty()
-                    || HandheldRadioItem.getFrequency(receiverStack) != frequency) {
+        for (RadioEndpoint receiver : collectEndpoints(level)) {
+            if (receiver.id().equals(sender.getUUID()) || receiver.frequency() != frequency) {
                 continue;
             }
 
             // 发射时重新算一次，而不是读缓存：这一句话必须按"此刻"的地形和天气送达。
-            double gain = Antennas.linkGain(senderAntenna, Antennas.resolve(receiver), band);
+            double gain = Antennas.linkGain(senderGain, receiver.gainFor(band));
             double quality = SignalPropagation.compute(level,
                     sender.position(), receiver.position(), band, maxSteps, gain);
             if (quality <= 0.0D) {
@@ -418,9 +455,8 @@ public final class RadioManager {
                 continue;
             }
 
-            sink.deliver(receiver, new RadioMessage(
+            receiver.receive(new RadioMessage(
                     sender.getGameProfile().getName(), frequency, quality, text));
-            RadioSounds.squelch(receiver);
             if (++delivered >= maxReceivers) {
                 break;
             }
@@ -466,14 +502,138 @@ public final class RadioManager {
         IDLE_RESIDUAL.clear();
         LOW_POWER_WARNED.clear();
         VoicePowerLedger.clear();
+        FixedStationIndex.clear();
         voiceSnapshot = VoiceSnapshot.EMPTY;
         tickCounter = 0;
         cursor = 0;
         pairTotal = 0;
     }
 
-    /** 一个在线电台的临时快照，不跨 tick 保存。 */
-    private record Endpoint(ServerPlayer player, int frequency, AntennaKind antenna, ItemStack radio) {
+    // -------------------------------------------------------------- 端点
+
+    /**
+     * 参与链路计算的一台设备。
+     *
+     * <p>玩家和固定台在链路模型里没有区别：都有位置、频率、天线增益和能量状态。
+     * 把它们的差异（怎么投递、要不要推 HUD）留给实现，链路计算本身就不必分叉。
+     *
+     * <p>{@link #player()} 为 null 表示这不是一个玩家设备 —— 调用方据此决定
+     * 要不要发 HUD 包、要不要算语音半径。
+     */
+    private interface RadioEndpoint {
+        UUID id();
+
+        Vec3 position();
+
+        int frequency();
+
+        /** 这条设备在某波段上的射程系数。玩家来自副手天线，固定台来自多方块结构。 */
+        double gainFor(RadioBand band);
+
+        boolean canTransmit();
+
+        /** 电量比例，只用于"低电"提示。 */
+        float energyRatio();
+
+        void drain(int amount);
+
+        void receive(RadioMessage message);
+
+        @Nullable
+        ServerPlayer player();
+    }
+
+    /** 玩家手持机。{@code radio} 是本 tick 的活引用，不能跨 tick 保存。 */
+    private record PlayerEndpoint(ServerPlayer player, ItemStack radio, AntennaKind antenna)
+            implements RadioEndpoint {
+        @Override
+        public UUID id() {
+            return player.getUUID();
+        }
+
+        @Override
+        public Vec3 position() {
+            return player.position();
+        }
+
+        @Override
+        public int frequency() {
+            return HandheldRadioItem.getFrequency(radio);
+        }
+
+        @Override
+        public double gainFor(RadioBand band) {
+            return antenna.gainFor(band);
+        }
+
+        @Override
+        public boolean canTransmit() {
+            return RadioEnergy.canTransmit(radio);
+        }
+
+        @Override
+        public float energyRatio() {
+            return RadioEnergy.ratio(radio);
+        }
+
+        @Override
+        public void drain(int amount) {
+            RadioEnergy.drain(radio, amount);
+        }
+
+        @Override
+        public void receive(RadioMessage message) {
+            sink.deliver(player, message);
+            RadioSounds.squelch(player);
+        }
+    }
+
+    /** 固定台。位置取方块中心，增益来自它的多方块天线。 */
+    private record StationEndpoint(FixedStationBlockEntity station) implements RadioEndpoint {
+        @Override
+        public UUID id() {
+            return station.stationId();
+        }
+
+        @Override
+        public Vec3 position() {
+            return Vec3.atCenterOf(station.getBlockPos());
+        }
+
+        @Override
+        public int frequency() {
+            return station.getFrequency();
+        }
+
+        @Override
+        public double gainFor(RadioBand band) {
+            return station.antenna().gainFor(band);
+        }
+
+        @Override
+        public boolean canTransmit() {
+            return station.canTransmit();
+        }
+
+        @Override
+        public float energyRatio() {
+            return station.getEnergyRatio();
+        }
+
+        @Override
+        public void drain(int amount) {
+            station.drain(amount);
+        }
+
+        @Override
+        public void receive(RadioMessage message) {
+            station.receive(message);
+        }
+
+        @Override
+        public ServerPlayer player() {
+            return null;
+        }
     }
 
     /** 有向链路：从 {@code from} 发射、被 {@code to} 接收。 */
@@ -481,7 +641,7 @@ public final class RadioManager {
     }
 
     /** 上一次同步出去的状态。 */
-    private record SentState(double quality, boolean active,
+    private record SentState(double quality, int heard, boolean active,
                              List<S2CRadioState.SpeakerLink> links) {
     }
 

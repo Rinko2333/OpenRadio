@@ -1,23 +1,35 @@
 package com.rinko.openradio.block;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
 import javax.annotation.Nullable;
 
 import com.mojang.serialization.MapCodec;
 import com.rinko.openradio.Config;
+import com.rinko.openradio.block.antenna.AntennaBaseBlockEntity;
 import com.rinko.openradio.radio.AntennaProfile;
 import com.rinko.openradio.radio.FeederNetwork;
+import com.rinko.openradio.radio.FixedStationIndex;
 import com.rinko.openradio.radio.RadioConstants;
-import com.rinko.openradio.block.antenna.AntennaBaseBlockEntity;
+import com.rinko.openradio.radio.RadioMessage;
+import com.rinko.openradio.radio.TextDegrader;
 import com.rinko.openradio.registry.ModBlockEntities;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
 /**
@@ -45,10 +57,28 @@ public class FixedStationBlockEntity extends BlockEntity {
     private static final String TAG_ENERGY = "energy";
     private static final String TAG_FREQUENCY = "frequency";
     private static final String TAG_POWERED = "powered";
+    private static final String TAG_ID = "station_id";
+
+    /** 收到消息时"喊"出去的半径。临时方案，M6.4 的界面会替代它。 */
+    private static final double SPEAKER_RADIUS = 16.0D;
+    /** 收件箱上限。不落盘，重启就没了 —— 它是给界面看的近期记录，不是存档数据。 */
+    private static final int MAX_INBOX = 16;
 
     private int energy;
     private int frequency = RadioConstants.DEFAULT_FREQUENCY;
     private boolean powered;
+
+    /**
+     * 这台电台的永久身份。
+     *
+     * <p>存在方块实体自己身上而不是全局表里：表是"当前加载了哪些"，重启就空；
+     * 身份必须跨重启稳定，否则区块卸载再加载就会换一个 UUID，别人记着的链路全断。
+     */
+    @Nullable
+    private UUID stationId;
+
+    /** 最近收到的消息，最新的在前。 */
+    private final List<LoggedMessage> inbox = new ArrayList<>();
 
     /** 待机耗电的小数余额。按 tick 扣 0.x FE 时，直接取整会永远是 0。 */
     private double idleResidual;
@@ -162,6 +192,93 @@ public class FixedStationBlockEntity extends BlockEntity {
         }
     }
 
+    // ------------------------------------------------------------ 身份与生命周期
+
+    /** 稳定的设备 ID。第一次被访问时生成，之后随存档带走。 */
+    public UUID stationId() {
+        if (stationId == null) {
+            stationId = UUID.randomUUID();
+            setChanged();
+        }
+        return stationId;
+    }
+
+    /**
+     * 区块加载时登记到索引。
+     *
+     * <p>用 {@code onLoad} 而不是在构造里登记：构造发生在区块反序列化过程中，
+     * 那时 {@code getLevel()} 可能还没设置好。
+     */
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        // 先把身份落地：万一放下来之后一直没人查询链路，保存时也该带着 UUID。
+        stationId();
+        if (getLevel() instanceof ServerLevel) {
+            FixedStationIndex.register(this);
+        }
+    }
+
+    /**
+     * 方块被破坏或区块卸载时注销。
+     *
+     * <p>{@code setRemoved} 两种情况下都会调用，正好对应索引需要的语义 ——
+     * 索引只反映"现在加载着哪些"，不试图记录"世界上存在哪些"。
+     */
+    @Override
+    public void setRemoved() {
+        if (getLevel() instanceof ServerLevel) {
+            FixedStationIndex.unregister(this);
+        }
+        super.setRemoved();
+    }
+
+    // ------------------------------------------------------------ 收发
+
+    /**
+     * 收到一条同频消息。
+     *
+     * <p>降级和其他接收者一样按 Q 计算 —— 固定台不该有"听得比别人清楚"的特权，
+     * 它的优势应该来自天线和功率，而不是代码里的特例。
+     */
+    public void receive(RadioMessage message) {
+        if (!(getLevel() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        String degraded = TextDegrader.degrade(message.text(), message.quality(), serverLevel.getRandom());
+
+        inbox.add(0, new LoggedMessage(message.senderName(), message.quality(), degraded,
+                serverLevel.getGameTime()));
+        while (inbox.size() > MAX_INBOX) {
+            inbox.remove(inbox.size() - 1);
+        }
+
+        // 临时表现：让站在旁边的人听见。真机上固定台确实是个喇叭，
+        // 但这终究是占位 —— M6.4 的界面才是它该有的样子。
+        Component line = Component.literal("[")
+                .append(Component.translatable("block.openradio.fixed_station"))
+                .append(Component.literal("] "))
+                .append(Component.literal(message.senderName()).withStyle(ChatFormatting.WHITE))
+                .append(Component.literal(": ").withStyle(ChatFormatting.DARK_GRAY))
+                .append(Component.literal(degraded).withStyle(ChatFormatting.GRAY));
+
+        Vec3 center = Vec3.atCenterOf(worldPosition);
+        for (ServerPlayer near : serverLevel.players()) {
+            if (near.distanceToSqr(center) <= SPEAKER_RADIUS * SPEAKER_RADIUS) {
+                near.displayClientMessage(line, false);
+            }
+        }
+    }
+
+    /** 收件箱快照。界面会用它，现在只给诊断日志用。 */
+    public List<LoggedMessage> inbox() {
+        return List.copyOf(inbox);
+    }
+
+    /** 一条已降级的收信记录。 */
+    public record LoggedMessage(String senderName, double quality, String text, long gameTime) {
+    }
+
     // ------------------------------------------------------------ 天线
 
     /**
@@ -238,6 +355,9 @@ public class FixedStationBlockEntity extends BlockEntity {
         tag.putInt(TAG_ENERGY, energy);
         tag.putInt(TAG_FREQUENCY, frequency);
         tag.putBoolean(TAG_POWERED, powered);
+        if (stationId != null) {
+            tag.putUUID(TAG_ID, stationId);
+        }
     }
 
     @Override
@@ -248,6 +368,10 @@ public class FixedStationBlockEntity extends BlockEntity {
                 ? RadioConstants.clampFrequency(tag.getInt(TAG_FREQUENCY))
                 : RadioConstants.DEFAULT_FREQUENCY;
         powered = tag.getBoolean(TAG_POWERED);
+        // 老存档没有这个字段：留空，第一次 stationId() 时补上。
+        if (tag.contains(TAG_ID, Tag.TAG_INT_ARRAY)) {
+            stationId = tag.getUUID(TAG_ID);
+        }
     }
 
     /**
