@@ -50,6 +50,9 @@ public final class ClientEvents {
             ItemStack radio = HandheldRadioItem.findRadio(minecraft.player);
             ClientRadioState.setSquelch(radio.isEmpty() ? 0.0F : HandheldRadioItem.getSquelch(radio));
         }
+
+        // M6 验证：收齐后把录音写盘。写文件绝不能放在音频线程上。
+        SpikeRecorder.clientTick();
     }
 
     private ClientEvents() {

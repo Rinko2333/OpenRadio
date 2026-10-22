@@ -81,6 +81,17 @@ neoForge {
             programArguments.addAll '--username', 'Dev2'
         }
 
+        // M6 可行性验证用：自动进入单人存档，配合 OPENRADIO_SPIKE_AUTO 环境变量
+        // 自动推送测试音频并录音。存档名用 \u 转义写成纯 ASCII，
+        // 避免 build 脚本在非 UTF-8 环境下把中文参数读成乱码。
+        // 换存档：./gradlew runAutoSpike -PspikeLevel="MyWorld"
+        // 验证完成后删除这个配置。
+        autoSpike {
+            client()
+            def level = project.findProperty('spikeLevel') ?: '\u65b0\u7684\u4e16\u754c (1)'
+            programArguments.addAll '--quickPlaySingleplayer', level
+        }
+
         // This run config launches GameTestServer and runs all registered gametests, then exits.
         // By default, the server will crash when no gametests are provided.
         // The gametest system is also enabled by default for other run configs under the /test command.

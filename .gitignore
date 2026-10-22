@@ -45,3 +45,7 @@ libs/*.jar
 
 ### 专用服务端运行目录
 run-server/
+
+### spike 验证录音输出
+run/spike/
+run-server/spike/

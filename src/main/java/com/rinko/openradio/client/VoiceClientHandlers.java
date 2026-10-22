@@ -47,7 +47,16 @@ public final class VoiceClientHandlers {
      */
     public static void onStaticSound(ClientReceiveSoundEvent.StaticSound event) {
         UUID speaker = event.getId();
-        if (speaker == null || !isOnlinePlayer(speaker)) {
+        if (speaker == null) {
+            return;
+        }
+        // M6 验证通道：录音后原样播放，绝不进电台 DSP ——
+        // 否则测出来的就不是"Opus 做了什么"，而是"Opus + 我们的低通/噪声做了什么"。
+        if (SpikeRecorder.isSpikeChannel(speaker)) {
+            SpikeRecorder.capture(speaker, event.getRawAudio());
+            return;
+        }
+        if (!isOnlinePlayer(speaker)) {
             return;
         }
         apply(speaker, event.getRawAudio(), event::setRawAudio);

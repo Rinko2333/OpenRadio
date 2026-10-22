@@ -56,8 +56,12 @@ modid `openradio`，包 `com.rinko.openradio`。
     Opus 20ms 一帧≈一个 RTTY 位，丢帧就整位丢，误码不可控。
   - **SSTV = 真实音频**。SVC 的 API 有 `OpusEncoder` + `createStaticAudioChannel` +
     `createAudioPlayer(channel, encoder, Supplier<short[]>)`，可以主动推音频给指定玩家，
-    SVC 自己按 20ms 节奏取帧编码。**必须 `OpusEncoderMode.AUDIO`**（VOIP 模式会削掉
-    1.5–2.3kHz，正好是 SSTV 副载波）。不需要 mixin、不需要自己实现 Opus。
+    SVC 自己按 20ms 节奏取帧编码。不需要 mixin、不需要自己实现 Opus。
+    用 `OpusEncoderMode.AUDIO`，理由是**关掉 VAD/DTX 让行为可预测** ——
+    2026-10-22 实测两种模式对 1.5–2.3kHz 都 ≤0.1dB，"VOIP 削高频"是错的。
+  - **数字模式的真正约束是自己的 DSP，不是 Opus**：语音那套 dropout 会在 Q=0.5 时
+    掐掉 24% 的 20ms 帧，SSTV 每行 5.7 帧、行同步必崩。数据模式必须 dropout=0、
+    低通下限 ≥2600Hz、保留噪声（让画面真的长噪点）。
   - 原"绝不把调制信号塞进 Opus"的结论过于绝对，2026-10-22 修正。
 - 能量统一用 NeoForge Energy（FE，UI 可显示为 RF）；没电只限制发射，不做变砖。
   电池**不做物品槽**；天线**放副手**。手持台永远不要 `Menu`（复制漏洞面），

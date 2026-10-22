@@ -62,6 +62,18 @@ public class OpenRadioVoicePlugin implements VoicechatPlugin {
     /** 服务端 API。客户端上为 null —— 麦克风包和转发都只在服务端有意义。 */
     private VoicechatServerApi serverApi;
 
+    /**
+     * 给命令层用的服务端 API。
+     *
+     * <p>命令必须在服务端执行（音频由服务端按 20ms 节奏推），而 API 实例只存在于
+     * 插件对象里，所以暴露成静态。客户端上为 null。
+     */
+    private static volatile VoicechatServerApi serverApiInstance;
+
+    public static VoicechatServerApi serverApi() {
+        return serverApiInstance;
+    }
+
     /** 转发诊断日志的上一次输出时间，避免每个语音包刷一行。只在包处理线程访问。 */
     private long lastRelayLog;
 
@@ -74,6 +86,7 @@ public class OpenRadioVoicePlugin implements VoicechatPlugin {
     public void initialize(VoicechatApi api) {
         if (api instanceof VoicechatServerApi server) {
             serverApi = server;
+            serverApiInstance = server;
             OpenRadio.LOGGER.info("[voice] SVC 集成已加载（服务端），原始语音距离 = {}",
                     server.getVoiceChatDistance());
         } else {
